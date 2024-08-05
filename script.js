@@ -14,14 +14,14 @@ async function findCommonCitations() {
             return;
         }
 
-        const citations1 = await getCitations(doi1);
-        const citations2 = await getCitations(doi2);
+        const references1 = await getReferences(doi1);
+        const references2 = await getReferences(doi2);
 
-        const commonCitations = citations1.filter(citation => 
-            citations2.some(c => c.cited === citation.cited)
+        const commonReferences = references1.filter(ref1 => 
+            references2.some(ref2 => ref1.citing === ref2.citing)
         );
 
-        displayResults(commonCitations);
+        displayResults(commonReferences, doi1, doi2);
     } catch (error) {
         resultsDiv.innerHTML = 'An error occurred: ' + error.message;
     }
@@ -41,30 +41,30 @@ async function getDOI(input) {
     return null;
 }
 
-async function getCitations(doi) {
-    const apiUrl = `https://opencitations.net/index/coci/api/v1/citations/${doi}`;
+async function getReferences(doi) {
+    const apiUrl = `https://opencitations.net/index/coci/api/v1/references/${doi}`;
     const response = await fetch(apiUrl);
     if (!response.ok) {
-        throw new Error('Failed to fetch citations');
+        throw new Error('Failed to fetch references');
     }
     return await response.json();
 }
 
-function displayResults(commonCitations) {
+function displayResults(commonReferences, doi1, doi2) {
     const resultsDiv = document.getElementById('results');
-    if (commonCitations.length === 0) {
+    if (commonReferences.length === 0) {
         resultsDiv.innerHTML = "No common citations found.";
     } else {
-        let html = "<h2>Common Citations:</h2><ul>";
-        commonCitations.forEach(citation => {
+        let html = "<h2>Articles that cite both input papers:</h2><ul>";
+        commonReferences.forEach(reference => {
             html += `<li>
-                <strong>Cited DOI:</strong> ${citation.cited}<br>
-                <strong>Citing DOI:</strong> ${citation.citing}<br>
-                <strong>Creation Date:</strong> ${citation.creation}<br>
-                <strong>OCI:</strong> ${citation.oci}
+                <strong>Citing DOI:</strong> ${reference.citing}<br>
+                <strong>Creation Date:</strong> ${reference.creation}<br>
+                <strong>OCI:</strong> ${reference.oci}
             </li>`;
         });
         html += "</ul>";
+        html += `<p>Input DOIs: ${doi1}, ${doi2}</p>`;
         resultsDiv.innerHTML = html;
     }
 }
