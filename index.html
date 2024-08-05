@@ -14,3 +14,43 @@
     <script src="script.js"></script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find article(s) that cite 2 others</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Find article(s) that cite 2 others</h1>
+    <input type="text" id="article1" placeholder="Title or DOI of first article">
+    <input type="text" id="article2" placeholder="Title or DOI of second article">
+    <button onclick="findCommonCitations()">Find Common Citations</button>
+    <div id="results"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
