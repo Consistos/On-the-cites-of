@@ -62,22 +62,21 @@ async function getReferences(doi) {
 
 function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
     const resultsDiv = document.getElementById('results');
-let html = `<h2>Results:</h2>`;
+    let html = `<h2>Results:</h2>`;
     html += `<p>References found for DOI 1 (${doi1}): ${refCount1}</p>`;
     html += `<p>References found for DOI 2 (${doi2}): ${refCount2}</p>`;
     
     if (commonReferences.length === 0) {
         html += "<p>No common citations found.</p>";
     } else {
-        html += `<h3>Publications that cite both of them (${commonReferences.length}):</h3><ul>`;
-        commonReferences.forEach(reference => {
-            html += `<li>
-                <strong>Citing DOI:</strong> ${reference.citing}<br>
-                <strong>Creation Date:</strong> ${reference.creation}<br>
-                <strong>OCI:</strong> ${reference.oci}
-            </li>`;
-        });
-        html += "</ul>";
+        html += `<h3>Publications that cite both of them (${commonReferences.length}):</h3>`;
+        
+        // Create Google Scholar search URL
+        const searchQuery = commonReferences.map(ref => `"${ref.citing}"`).join(' OR ');
+        const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(searchQuery)}`;
+        
+        // Add iframe with Google Scholar search results
+        html += `<iframe src="${scholarUrl}" width="100%" height="600" frameborder="0"></iframe>`;
     }
     
     resultsDiv.innerHTML = html;
