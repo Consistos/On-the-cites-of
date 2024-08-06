@@ -96,17 +96,17 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     }
     
     html += `</table>`;
-    
-    // Display stats below the table
-    html += `<div>
-        <h5>(${validReferencesCount}) publications with available titles cite both of them</h5>
-        <p>${refCount1} references found for DOI 1 (<a href="https://doi.org/${doi1}" target="_blank">${doi1}</a>)</p>
-        <p>${refCount2} references found for DOI 2 (<a href="https://doi.org/${doi2}" target="_blank">${doi2}</a>)</p>
-    </div>`;
-    
+    <div>
+    if (commonReferences.length === 0) {
+        <p>No common citations found.</p>;
+    } else {
+    <p>(${commonReferences.length}) results</p>;
+    <p>${refCount1}/{refCount2} references for the 1st/2nd entry found(${doi1})</p>;
+    </div>;
+    }
     if (validReferencesCount === 0) {
         html = "<p>No common citations found with available titles.</p>";
     }
-    
+}
     resultsDiv.innerHTML = html;
 }
