@@ -75,14 +75,6 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     const resultsDiv = document.getElementById('results');
     let validReferencesCount = 0;
     
-    // Count valid references first
-    for (const ref of commonReferences) {
-        const title = await getPublicationTitle(ref.citing);
-        if (title !== 'Title not available') {
-            validReferencesCount++;
-        }
-    }
-    
     // Create table with 100% width and adjusted column widths
     let html = `<table style="width: 100%; table-layout: fixed; margin-bottom: 20px;">
         <tr>
@@ -90,23 +82,29 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
             <th style="width: 30%;">DOI</th>
         </tr>`;
     
-    for (const ref of commonReferences) {
-        const title = await getPublicationTitle(ref.citing);
+    const titlePromises = commonReferences.map(ref => getPublicationTitle(ref.citing));
+    const titles = await Promise.all(titlePromises);
+    
+    commonReferences.forEach((ref, index) => {
+        const title = titles[index];
         if (title !== 'Title not available') {
+            validReferencesCount++;
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
+            const doiUrl = `https://doi.org/${ref.citing}`;
             html += `<tr>
                 <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank">${title}</a></td>
-                <td style="word-wrap: break-word;">${ref.citing}</td>
+                <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank">${ref.citing}</a></td>
             </tr>`;
         }
-    }
+    });
+    
     html += `</table>`;
     
     // Display stats below the table
     html += `<div>
         <h5>(${validReferencesCount}) publications with available titles cite both of them</h5>
-        <p>${refCount1} references found for DOI 1 (${doi1})</p>
-        <p>${refCount2} references found for DOI 2 (${doi2})</p>
+        <p>${refCount1} references found for DOI 1 (<a href="https://doi.org/${doi1}" target="_blank">${doi1}</a>)</p>
+        <p>${refCount2} references found for DOI 2 (<a href="https://doi.org/${doi2}" target="_blank">${doi2}</a>)</p>
     </div>`;
     
     if (validReferencesCount === 0) {
