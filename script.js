@@ -61,9 +61,14 @@ async function getReferences(doi) {
 }
 
 async function getPublicationTitle(doi) {
-    const response = await fetch(`https://api.crossref.org/works/${doi}`);
-    const data = await response.json();
-    return data.message.title[0];
+    try {
+        const response = await fetch(`https://api.crossref.org/works/${doi}`);
+        const data = await response.json();
+        return data.message.title ? data.message.title[0] : 'Title not available';
+    } catch (error) {
+        console.error('Error fetching publication title:', error);
+        return 'Title not available';
+    }
 }
 
 async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
