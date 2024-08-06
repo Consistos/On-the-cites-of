@@ -71,12 +71,21 @@ function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
     } else {
         html += `<h3>Publications that cite both of them (${commonReferences.length}):</h3>`;
         
-        // Create Google Scholar search URL
-        const searchQuery = commonReferences.map(ref => `"${ref.citing}"`).join(' OR ');
-        const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(searchQuery)}`;
+        html += `<table>
+            <tr>
+                <th>Title</th>
+                <th>Google Scholar Link</th>
+            </tr>`;
         
-        // Add iframe with Google Scholar search results
-        html += `<iframe src="${scholarUrl}" width="100%" height="600" frameborder="0"></iframe>`;
+        commonReferences.forEach(ref => {
+            const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
+            html += `<tr>
+                <td>${ref.citing}</td>
+                <td><a href="${scholarUrl}" target="_blank">View on Google Scholar</a></td>
+            </tr>`;
+        });
+        
+        html += `</table>`;
     }
     
     resultsDiv.innerHTML = html;
