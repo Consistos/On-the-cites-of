@@ -99,35 +99,37 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     const resultsDiv = document.getElementById('results');
     let validReferencesCount = 0;
     
-    // Create table with 100% width and adjusted column widths
-    let html = `<table style="width: 100%; table-layout: fixed; margin-bottom: 20px;">
-        <tr>
-            <th style="width: 70%;">Title</th>
-            <th style="width: 30%;">DOI</th>
-        </tr>`;
-    
-    for (const ref of commonReferences) {
-        const title = await getPublicationTitle(ref.citing);
-        if (title !== 'Title not available') {
-            validReferencesCount++;
-            const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
-            const doiUrl = `https://doi.org/${ref.citing}`;
-            html += `<tr>
-                <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank">${title}</a></td>
-                <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank">${ref.citing}</a></td>
-            </tr>`;
-        }
-    }
-    
-    html += `</table>`;
+    let html = '';
     
     if (commonReferences.length === 0) {
-        html += `<div><p>No common citations found.</p></div>`;
+        html = `<p>No common citations found.</p>`;
     } else {
-        html += `<div>
-            <p>(${commonReferences.length}) results</p>
-            <p>${refCount1}/${refCount2} references for the 1st/2nd entry found (${doi1}/${doi2})</p>
-        </div>`;
+        html = `<p><strong>(${commonReferences.length}) results</strong></p>`;
+        
+        // Create table with the same width as input fields
+        html += `<table style="width: 100%; table-layout: fixed; margin-bottom: 20px;">
+            <tr>
+                <th style="width: 70%;">Title</th>
+                <th style="width: 30%;">DOI</th>
+            </tr>`;
+        
+        for (const ref of commonReferences) {
+            const title = await getPublicationTitle(ref.citing);
+            if (title !== 'Title not available') {
+                validReferencesCount++;
+                const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
+                const doiUrl = `https://doi.org/${ref.citing}`;
+                html += `<tr>
+                    <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank">${title}</a></td>
+                    <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank">${ref.citing}</a></td>
+                </tr>`;
+            }
+        }
+        
+        html += `</table>`;
+        
+        // Add reference count information at the bottom, greyed out and small
+        html += `<p style="color: #888; font-size: 0.8em;">${refCount1}/${refCount2} references for the 1st/2nd entry found (${doi1}/${doi2})</p>`;
     }
     
     if (validReferencesCount === 0) {
