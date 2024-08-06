@@ -83,15 +83,8 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
         }
     }
     
-    // Display stats at the top
-    let html = `<div style="margin-bottom: 20px;">
-        <h5>(${validReferencesCount}) publications with available titles cite both of them</h5>
-        <p>${refCount1} references found for DOI 1 (${doi1})</p>
-        <p>${refCount2} references found for DOI 2 (${doi2})</p>
-    </div>`;
-    
     // Create table with 100% width and adjusted column widths
-    html += `<table style="width: 100%; table-layout: fixed;">
+    let html = `<table style="width: 100%; table-layout: fixed; margin-bottom: 20px;">
         <tr>
             <th style="width: 70%;">Title</th>
             <th style="width: 30%;">DOI</th>
@@ -108,6 +101,13 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
         }
     }
     html += `</table>`;
+    
+    // Display stats below the table
+    html += `<div>
+        <h5>(${validReferencesCount}) publications with available titles cite both of them</h5>
+        <p>${refCount1} references found for DOI 1 (${doi1})</p>
+        <p>${refCount2} references found for DOI 2 (${doi2})</p>
+    </div>`;
     
     if (validReferencesCount === 0) {
         html = "<p>No common citations found with available titles.</p>";
