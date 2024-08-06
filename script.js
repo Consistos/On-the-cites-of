@@ -62,8 +62,7 @@ async function getReferences(doi) {
 
 function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
     const resultsDiv = document.getElementById('results');
-    let html = `<h2>Results:</h2>`;
-    html += `<p>References found for DOI 1 (${doi1}): ${refCount1}</p>`;
+    let html = `<p>References found for DOI 1 (${doi1}): ${refCount1}</p>`;
     html += `<p>References found for DOI 2 (${doi2}): ${refCount2}</p>`;
     
     if (commonReferences.length === 0) {
@@ -74,6 +73,7 @@ function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
         html += `<table>
             <tr>
                 <th>Title</th>
+                <th>DOI</th>
                 <th>Google Scholar Link</th>
             </tr>`;
         
@@ -81,6 +81,7 @@ function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
             html += `<tr>
                 <td>${ref.citing}</td>
+                <td>${ref.cited}</td>
                 <td><a href="${scholarUrl}" target="_blank">View on Google Scholar</a></td>
             </tr>`;
         });
