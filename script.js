@@ -9,7 +9,7 @@ async function findCommonCitations() {
         const doi1 = await getDOI(article1);
         const doi2 = await getDOI(article2);
 
-        if (!doi1 || !doi2) {
+if (!doi1 || !doi2) {               
             resultsDiv.innerHTML = 'Could not find DOI for one or both articles. Please check your input.';
             return;
         }
@@ -47,7 +47,7 @@ async function getDOI(input) {
 }
 
 async function getReferences(doi) {
-    const apiUrl = `https://opencitations.net/index/api/v1/citations/${doi}`;
+    const apiUrl = `https://corsproxy.io/?https://opencitations.net/index/api/v1/citations/${doi}`;
     const response = await fetch(apiUrl);
     if (!response.ok) {
         throw new Error('Failed to fetch references');
@@ -62,14 +62,14 @@ async function getReferences(doi) {
 
 function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
     const resultsDiv = document.getElementById('results');
-    let html = `<h2>Results:</h2>`;
+let html = `<h2>Results:</h2>`;
     html += `<p>References found for DOI 1 (${doi1}): ${refCount1}</p>`;
     html += `<p>References found for DOI 2 (${doi2}): ${refCount2}</p>`;
     
     if (commonReferences.length === 0) {
         html += "<p>No common citations found.</p>";
     } else {
-        html += `<h3>Articles that cite both input papers (${commonReferences.length}):</h3><ul>`;
+        html += `<h3>Publications that cite both of them (${commonReferences.length}):</h3><ul>`;
         commonReferences.forEach(reference => {
             html += `<li>
                 <strong>Citing DOI:</strong> ${reference.citing}<br>
