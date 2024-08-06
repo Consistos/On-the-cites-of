@@ -9,7 +9,7 @@ async function findCommonCitations() {
         const doi1 = await getDOI(article1);
         const doi2 = await getDOI(article2);
 
-if (!doi1 || !doi2) {               
+        if (!doi1 || !doi2) {               
             resultsDiv.innerHTML = 'Could not find DOI for one or both articles. Please check your input.';
             return;
         }
@@ -17,8 +17,18 @@ if (!doi1 || !doi2) {
         const references1 = await getReferences(doi1);
         const references2 = await getReferences(doi2);
 
-        if (references1.length === 0 || references2.length === 0) {
-            resultsDiv.innerHTML = 'No references found for one or both articles. The API might not have data for these DOIs.';
+        if (references1.length === 0 && references2.length === 0) {
+            resultsDiv.innerHTML = 'No references found for both articles. The API might not have data for these DOIs.';
+            return;
+        }
+
+        if (references1.length === 0) {
+            resultsDiv.innerHTML = `No references found for the first article (${doi1}). The API might not have data for this DOI.`;
+            return;
+        }
+
+        if (references2.length === 0) {
+            resultsDiv.innerHTML = `No references found for the second article (${doi2}). The API might not have data for this DOI.`;
             return;
         }
 
@@ -29,35 +39,49 @@ if (!doi1 || !doi2) {
         await displayResults(commonReferences, doi1, doi2, references1.length, references2.length);
     } catch (error) {
         resultsDiv.innerHTML = 'An error occurred: ' + error.message;
+        console.error('Error in findCommonCitations:', error);
     }
 }
 
 async function getDOI(input) {
-    if (input.startsWith('10.')) {
-        return input; // It's already a DOI
+    // Sanitize and validate the input
+    const sanitizedInput = input.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
+    
+    if (/^10\.\d{4,9}\/[-._;()/:A-Z0-9]+$/i.test(sanitizedInput)) {
+        return sanitizedInput; // It's a valid DOI
     }
     
-    const response = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(input)}&rows=1`);
-    const data = await response.json();
-    
-    if (data.message.items.length > 0) {
-        return data.message.items[0].DOI;
+    try {
+        const response = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(sanitizedInput)}&rows=1`);
+        const data = await response.json();
+        
+        if (data.message.items.length > 0) {
+            return data.message.items[0].DOI;
+        }
+    } catch (error) {
+        console.error('Error fetching DOI:', error);
     }
+    
     return null;
 }
 
 async function getReferences(doi) {
-    const apiUrl = `https://corsproxy.io/?https://opencitations.net/index/api/v1/citations/${doi}`;
-    const response = await fetch(apiUrl);
-    if (!response.ok) {
-        throw new Error('Failed to fetch references');
-    }
-    const data = await response.json();
-    if (data.length === 0) {
-        console.warn(`No references found for DOI: ${doi}`);
+    const apiUrl = `https://corsproxy.io/?https://opencitations.net/index/api/v1/citations/${encodeURIComponent(doi)}`;
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.length === 0) {
+            console.warn(`No references found for DOI: ${doi}`);
+            return [];
+        }
+        return data;
+    } catch (error) {
+        console.error(`Error fetching references for DOI ${doi}:`, error);
         return [];
     }
-    return data;
 }
 
 async function getPublicationTitle(doi) {
