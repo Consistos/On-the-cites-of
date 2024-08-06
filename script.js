@@ -128,8 +128,8 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
         html += `</table>`;
     }
     
-    if (validReferencesCount === 0) {
-        html = "<p style='text-align: center;'>No common citations found with available titles.</p>";
+    if (validReferencesCount === 0 && commonReferences.length > 0) {
+        html = "<p style='text-align: center;'>Common citations found, but no titles available.</p>";
     }
     
     // Add reference count information below the table, centered, greyed out and small
