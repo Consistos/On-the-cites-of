@@ -101,12 +101,12 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     
     let html = '';
     
+    // Display number of matching references above the table
+    html = `<p style="text-align: center; margin-bottom: 20px;">${commonReferences.length} common citations found</p>`;
+    
     if (commonReferences.length === 0) {
-        html = `<p>No common citations found.</p>`;
+        html += `<p>No common citations found.</p>`;
     } else {
-        // Display number of matching references above the table
-        html = `<p>${commonReferences.length} common citations found</p>`;
-        
         // Create table with the same width as input fields plus their labels
         html += `<table style="width: 100%; table-layout: fixed; margin-bottom: 20px;">
             <tr>
@@ -132,10 +132,10 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     
     if (validReferencesCount === 0) {
         html = "<p>No common citations found with available titles.</p>";
-    } else {
-        // Add reference count information below the table, greyed out and small
-        html += `<p style="color: #888; font-size: 0.8em;">${refCount1}/${refCount2} references for the 1st/2nd entry found (${doi1}/${doi2})</p>`;
     }
+    
+    // Add reference count information below the table, centered, greyed out and small
+    html += `<p style="text-align: center; color: #888; font-size: 0.8em;">${refCount1}/${refCount2} references for the 1st/2nd entry found (${doi1}/${doi2})</p>`;
     
     resultsDiv.innerHTML = html;
 }
