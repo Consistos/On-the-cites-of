@@ -72,32 +72,45 @@ async function getPublicationTitle(doi) {
 }
 
 async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
-    const resultsDiv = document.getElementById('results');    
-    let html = `<table>
+    const resultsDiv = document.getElementById('results');
+    let validReferencesCount = 0;
+    
+    // Count valid references first
+    for (const ref of commonReferences) {
+        const title = await getPublicationTitle(ref.citing);
+        if (title !== 'Title not available') {
+            validReferencesCount++;
+        }
+    }
+    
+    // Display stats at the top
+    let html = `<div style="margin-bottom: 20px;">
+        <h5>(${validReferencesCount}) publications with available titles cite both of them</h5>
+        <p>${refCount1} references found for DOI 1 (${doi1})</p>
+        <p>${refCount2} references found for DOI 2 (${doi2})</p>
+    </div>`;
+    
+    // Create table with 100% width and adjusted column widths
+    html += `<table style="width: 100%; table-layout: fixed;">
         <tr>
-            <th>Title</th>
-            <th>DOI</th>
+            <th style="width: 70%;">Title</th>
+            <th style="width: 30%;">DOI</th>
         </tr>`;
     
-    let validReferencesCount = 0;
     for (const ref of commonReferences) {
         const title = await getPublicationTitle(ref.citing);
         if (title !== 'Title not available') {
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
             html += `<tr>
-                <td><a href="${scholarUrl}" target="_blank">${title}</a></td>
-                <td>${ref.citing}</td>
+                <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank">${title}</a></td>
+                <td style="word-wrap: break-word;">${ref.citing}</td>
             </tr>`;
-            validReferencesCount++;
         }
     }
     html += `</table>`;
+    
     if (validReferencesCount === 0) {
-        html += "<p>No common citations found with available titles.</p>";
-    } else {
-        html += `<h5>(${validReferencesCount}) publications with available titles cite both of them</h5>`;
-        html += `<p>${refCount1} references found for DOI 1 (${doi1})</p>`;
-        html += `<p>${refCount2} references found for DOI 2 (${doi2})</p>`;
+        html = "<p>No common citations found with available titles.</p>";
     }
     
     resultsDiv.innerHTML = html;
