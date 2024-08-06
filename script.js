@@ -44,11 +44,11 @@ async function findCommonCitations() {
 }
 
 async function getDOI(input) {
-    // Sanitize and validate the input
+    // Sanitize and validate the DOI
     const sanitizedInput = input.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
     
     if (/^10\.\d{4,9}\/[-._;()/:A-Z0-9]+$/i.test(sanitizedInput)) {
-        return sanitizedInput; // It's a valid DOI
+        return sanitizedInput; 
     }
     
     try {
@@ -104,7 +104,7 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     if (commonReferences.length === 0) {
         html = `<p>No common citations found.</p>`;
     } else {
-        html = `<p><strong>(${commonReferences.length}) results</strong></p>`;
+        html = `<p>${commonReferences.length} results</p>`;
         
         // Create table with the same width as input fields
         html += `<table style="width: 100%; table-layout: fixed; margin-bottom: 20px;">
