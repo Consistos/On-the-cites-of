@@ -120,17 +120,19 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     }
     
     html += `</table>`;
-    <div>
+    
     if (commonReferences.length === 0) {
-        <p>No common citations found.</p>;
+        html += `<div><p>No common citations found.</p></div>`;
     } else {
-    <p>(${commonReferences.length}) results</p>;
-    <p>${refCount1}/{refCount2} references for the 1st/2nd entry found(${doi1})</p>;
-    </div>;
+        html += `<div>
+            <p>(${commonReferences.length}) results</p>
+            <p>${refCount1}/${refCount2} references for the 1st/2nd entry found (${doi1}/${doi2})</p>
+        </div>`;
     }
+    
     if (validReferencesCount === 0) {
         html = "<p>No common citations found with available titles.</p>";
     }
-}
+    
     resultsDiv.innerHTML = html;
 }
