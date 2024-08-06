@@ -72,34 +72,31 @@ async function getPublicationTitle(doi) {
 }
 
 async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
-    const resultsDiv = document.getElementById('results');
-    let html = `<p>References found for DOI 1 (${doi1}): ${refCount1}</p>`;
-    html += `<p>References found for DOI 2 (${doi2}): ${refCount2}</p>`;
+    const resultsDiv = document.getElementById('results');    
+    let html = `<table>
+        <tr>
+            <th>Title</th>
+            <th>DOI</th>
+            <th>Google Scholar Link</th>
+        </tr>`;
     
+    for (const ref of commonReferences) {
+        const title = await getPublicationTitle(ref.citing);
+        const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
+        html += `<tr>
+            <td>${title}</td>
+            <td>${ref.citing}</td>
+            <td><a href="${scholarUrl}" target="_blank">${title}</a></td>
+        </tr>`;
+    }
+    html += `</table>`;
     if (commonReferences.length === 0) {
         html += "<p>No common citations found.</p>";
     } else {
-        html += `<h3>Publications that cite both of them (${commonReferences.length}):</h3>`;
-        
-        html += `<table>
-            <tr>
-                <th>Title</th>
-                <th>DOI</th>
-                <th>Google Scholar Link</th>
-            </tr>`;
-        
-        for (const ref of commonReferences) {
-            const title = await getPublicationTitle(ref.citing);
-            const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
-            html += `<tr>
-                <td>${title}</td>
-                <td>${ref.citing}</td>
-                <td><a href="${scholarUrl}" target="_blank">${title}</a></td>
-            </tr>`;
-        }
-        
-        html += `</table>`;
-    }
+    html += `<h5>(${commonReferences.length}) publications cite both of them</h5>`;
+    html += `<p>${refCount1} references found for DOI 1 (${doi1})</p>`;
+    html += `<p>${refCount2} references found for DOI 2 (${doi2})</p>`;
+}
     
     resultsDiv.innerHTML = html;
 }
