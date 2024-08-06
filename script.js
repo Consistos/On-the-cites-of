@@ -17,11 +17,16 @@ async function findCommonCitations() {
         const references1 = await getReferences(doi1);
         const references2 = await getReferences(doi2);
 
+        if (references1.length === 0 || references2.length === 0) {
+            resultsDiv.innerHTML = 'No references found for one or both articles. The API might not have data for these DOIs.';
+            return;
+        }
+
         const commonReferences = references1.filter(ref1 => 
             references2.some(ref2 => ref1.citing === ref2.citing)
         );
 
-        displayResults(commonReferences, doi1, doi2);
+        displayResults(commonReferences, doi1, doi2, references1.length, references2.length);
     } catch (error) {
         resultsDiv.innerHTML = 'An error occurred: ' + error.message;
     }
@@ -42,20 +47,29 @@ async function getDOI(input) {
 }
 
 async function getReferences(doi) {
-    const apiUrl = `https://opencitations.net/index/coci/api/v1/references/${doi}`;
+    const apiUrl = `https://opencitations.net/index/api/v1/citations/${doi}`;
     const response = await fetch(apiUrl);
     if (!response.ok) {
         throw new Error('Failed to fetch references');
     }
-    return await response.json();
+    const data = await response.json();
+    if (data.length === 0) {
+        console.warn(`No references found for DOI: ${doi}`);
+        return [];
+    }
+    return data;
 }
 
-function displayResults(commonReferences, doi1, doi2) {
+function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
     const resultsDiv = document.getElementById('results');
+    let html = `<h2>Results:</h2>`;
+    html += `<p>References found for DOI 1 (${doi1}): ${refCount1}</p>`;
+    html += `<p>References found for DOI 2 (${doi2}): ${refCount2}</p>`;
+    
     if (commonReferences.length === 0) {
-        resultsDiv.innerHTML = "No common citations found.";
+        html += "<p>No common citations found.</p>";
     } else {
-        let html = "<h2>Articles that cite both input papers:</h2><ul>";
+        html += `<h3>Articles that cite both input papers (${commonReferences.length}):</h3><ul>`;
         commonReferences.forEach(reference => {
             html += `<li>
                 <strong>Citing DOI:</strong> ${reference.citing}<br>
@@ -64,7 +78,7 @@ function displayResults(commonReferences, doi1, doi2) {
             </li>`;
         });
         html += "</ul>";
-        html += `<p>Input DOIs: ${doi1}, ${doi2}</p>`;
-        resultsDiv.innerHTML = html;
     }
+    
+    resultsDiv.innerHTML = html;
 }
