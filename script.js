@@ -99,10 +99,8 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     const resultsDiv = document.getElementById('results');
     let validReferencesCount = 0;
     
-    let html = '';
-    
     // Display number of matching references above the table
-    html = `<p style="text-align: center; margin-bottom: 20px;">${commonReferences.length} common citations found</p>`;
+    let html = `<p style="text-align: center; margin-bottom: 20px;">${commonReferences.length} common citations found</p>`;
     
     if (commonReferences.length === 0) {
         html += `<p>No common citations found.</p>`;
@@ -131,7 +129,7 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     }
     
     if (validReferencesCount === 0) {
-        html = "<p>No common citations found with available titles.</p>";
+        html = "<p style='text-align: center;'>No common citations found with available titles.</p>";
     }
     
     // Add reference count information below the table, centered, greyed out and small
