@@ -26,7 +26,7 @@ if (!doi1 || !doi2) {
             references2.some(ref2 => ref1.citing === ref2.citing)
         );
 
-        displayResults(commonReferences, doi1, doi2, references1.length, references2.length);
+        await displayResults(commonReferences, doi1, doi2, references1.length, references2.length);
     } catch (error) {
         resultsDiv.innerHTML = 'An error occurred: ' + error.message;
     }
@@ -60,7 +60,13 @@ async function getReferences(doi) {
     return data;
 }
 
-function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
+async function getPublicationTitle(doi) {
+    const response = await fetch(`https://api.crossref.org/works/${doi}`);
+    const data = await response.json();
+    return data.message.title[0];
+}
+
+async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
     const resultsDiv = document.getElementById('results');
     let html = `<p>References found for DOI 1 (${doi1}): ${refCount1}</p>`;
     html += `<p>References found for DOI 2 (${doi2}): ${refCount2}</p>`;
@@ -77,14 +83,15 @@ function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
                 <th>Google Scholar Link</th>
             </tr>`;
         
-        commonReferences.forEach(ref => {
+        for (const ref of commonReferences) {
+            const title = await getPublicationTitle(ref.citing);
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
             html += `<tr>
+                <td>${title}</td>
                 <td>${ref.citing}</td>
-                <td>${ref.cited}</td>
-                <td><a href="${scholarUrl}" target="_blank">View on Google Scholar</a></td>
+                <td><a href="${scholarUrl}" target="_blank">${title}</a></td>
             </tr>`;
-        });
+        }
         
         html += `</table>`;
     }
