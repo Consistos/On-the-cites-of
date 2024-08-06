@@ -82,11 +82,8 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
             <th style="width: 30%;">DOI</th>
         </tr>`;
     
-    const titlePromises = commonReferences.map(ref => getPublicationTitle(ref.citing));
-    const titles = await Promise.all(titlePromises);
-    
-    commonReferences.forEach((ref, index) => {
-        const title = titles[index];
+    for (const ref of commonReferences) {
+        const title = await getPublicationTitle(ref.citing);
         if (title !== 'Title not available') {
             validReferencesCount++;
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
@@ -96,7 +93,7 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
                 <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank">${ref.citing}</a></td>
             </tr>`;
         }
-    });
+    }
     
     html += `</table>`;
     
