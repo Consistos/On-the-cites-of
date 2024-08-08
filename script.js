@@ -14,6 +14,12 @@ async function findCommonCitations() {
             return;
         }
 
+        // Update URL with DOIs
+        const encodedDoi1 = encodeURIComponent(doi1);
+        const encodedDoi2 = encodeURIComponent(doi2);
+        const newUrl = `${window.location.pathname}?doi1=${encodedDoi1}&doi2=${encodedDoi2}`;
+        history.pushState({}, '', newUrl);
+
         const references1 = await getReferences(doi1);
         const references2 = await getReferences(doi2);
 
