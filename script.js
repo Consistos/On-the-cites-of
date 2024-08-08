@@ -100,6 +100,19 @@ async function getPublicationTitle(doi) {
     }
 }
 
+// Add event listeners for Enter key
+document.getElementById('article1').addEventListener('keyup', function(event) {
+    if (event.key === 'Enter') {
+        findCommonCitations();
+    }
+});
+
+document.getElementById('article2').addEventListener('keyup', function(event) {
+    if (event.key === 'Enter') {
+        findCommonCitations();
+    }
+});
+
 async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
     const resultsDiv = document.getElementById('results');
     let validReferencesCount = 0;
