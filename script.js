@@ -87,10 +87,15 @@ async function getReferences(doi) {
 async function getPublicationTitle(doi) {
     try {
         const response = await fetch(`https://api.crossref.org/works/${doi}`);
-        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const text = await response.text();
+        console.log('Raw response:', text);
+        const data = JSON.parse(text);
         return data.message.title ? data.message.title[0] : 'Title not available';
     } catch (error) {
-        console.error('Error fetching publication title:', error);
+        console.error('Error fetching publication title for DOI:', doi, error);
         return 'Title not available';
     }
 }
