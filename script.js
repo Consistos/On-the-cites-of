@@ -112,8 +112,13 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
                 <th style="width: 30%;">DOI</th>
             </tr>`;
         
-        for (const ref of commonReferences) {
-            const title = await getPublicationTitle(ref.citing);
+        // Fetch all titles concurrently
+        const titlePromises = commonReferences.map(ref => getPublicationTitle(ref.citing));
+        const titles = await Promise.all(titlePromises);
+        
+        for (let i = 0; i < commonReferences.length; i++) {
+            const ref = commonReferences[i];
+            const title = titles[i];
             if (title !== 'Title not available') {
                 validReferencesCount++;
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
