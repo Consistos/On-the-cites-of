@@ -119,6 +119,25 @@ document.getElementById('article2').addEventListener('keyup', function(event) {
     }
 });
 
+// Function to get URL parameters
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    var results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
+// Check for DOI parameters and perform search on page load
+window.addEventListener('load', function() {
+    const doi1 = getUrlParameter('doi1');
+    const doi2 = getUrlParameter('doi2');
+    if (doi1 && doi2) {
+        document.getElementById('article1').value = doi1;
+        document.getElementById('article2').value = doi2;
+        findCommonCitations();
+    }
+});
+
 async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
     const resultsDiv = document.getElementById('results');
     let validReferencesCount = 0;
