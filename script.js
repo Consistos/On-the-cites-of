@@ -86,7 +86,7 @@ async function getReferences(doi) {
 
 async function getPublicationTitle(doi) {
     try {
-        const response = await fetch(`https://api.crossref.org/works/${doi}`);
+        const response = await fetch(`https://corsproxy.io/?https://api.crossref.org/works/${doi}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
