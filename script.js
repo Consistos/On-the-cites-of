@@ -168,8 +168,8 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
                 const doiUrl = `https://doi.org/${ref.citing}`;
                 html += `<tr>
-                    <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank">${title}</a></td>
-                    <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank">${ref.citing}</a></td>
+                    <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank" style="color: blue; text-decoration: none;">${title}</a></td>
+                    <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank" style="color: blue; text-decoration: none;">${ref.citing}</a></td>
                 </tr>`;
             }
         }
