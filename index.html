@@ -8,8 +8,13 @@
 <body>
     <a href="raisondetre.html" id="about-link">About this tool</a>
     <h1>Search publication(s) that cite these</h1>
-    <input type="text" id="article1" placeholder="Title or DOI" size="50">
-    <input type="text" id="article2" placeholder="Title or DOI" size="50">
+    <div id="inputContainer">
+        <div class="input-group">
+            <input type="text" class="article-input" placeholder="Title or DOI" size="50">
+            <button class="remove-input" onclick="removeInput(this)">-</button>
+        </div>
+    </div>
+    <button onclick="addInput()">Add a publication</button>
     <button onclick="findCommonCitations()">Search</button>
     <div id="results"></div>
     <script src="script.js"></script>
