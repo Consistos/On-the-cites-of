@@ -72,6 +72,7 @@ async function getDOI(input) {
 }
 
 async function getReferences(doi) {
+    // CORS proxy to avoid restriction
     const apiUrl = `https://corsproxy.io/?https://opencitations.net/index/api/v1/citations/${encodeURIComponent(doi)}`;
     try {
         const response = await fetch(apiUrl);
@@ -106,7 +107,7 @@ async function getPublicationTitle(doi) {
     }
 }
 
-// Add event listeners for Enter key
+// Event listeners for search via Enter key
 document.getElementById('article1').addEventListener('keyup', function(event) {
     if (event.key === 'Enter') {
         findCommonCitations();
@@ -119,7 +120,7 @@ document.getElementById('article2').addEventListener('keyup', function(event) {
     }
 });
 
-// Function to get URL parameters
+// get URL parameters
 function getUrlParameter(name) {
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
@@ -127,7 +128,7 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
-// Check for DOI parameters and perform search on page load
+// Check for DOI parameters & search on page load if there
 window.addEventListener('load', function() {
     const doi1 = getUrlParameter('doi1');
     const doi2 = getUrlParameter('doi2');
@@ -143,13 +144,13 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     let validReferencesCount = 0;
     
     // Display number of matching references above the table
-    let html = `<p style="text-align: center; margin-bottom: 20px;">${commonReferences.length} common citations found</p>`;
+    let html = `<p style="text-align: center; margin-bottom: 10px;">${commonReferences.length} results</p>`;
     
     if (commonReferences.length === 0) {
-        html += `<p>No common citations found.</p>`;
+        html += `<p>No results.</p>`;
     } else {
         // Create table with the same width as input fields plus their labels
-        html += `<table style="width: 100%; table-layout: fixed; margin-bottom: 20px;">
+        html += `<table style="width: 100%; table-layout: fixed; margin-bottom: 10px;">
             <tr>
                 <th style="width: 70%;">Title</th>
                 <th style="width: 30%;">DOI</th>
@@ -180,7 +181,7 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
         html = "<p style='text-align: center;'>Common citations found, but no titles available.</p>";
     }
     
-    // Add reference count information below the table, centered, greyed out and small
+    // ref.s count
     html += `<p style="text-align: center; color: #888; font-size: 0.8em;">${refCount1}/${refCount2} references for the 1st/2nd entry found (${doi1}/${doi2})</p>`;
     
     resultsDiv.innerHTML = html;
