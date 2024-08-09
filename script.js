@@ -72,7 +72,7 @@ async function getDOI(input) {
 }
 
 async function getReferences(doi) {
-    // CORS proxy to avoid restriction
+    // CORS proxy to avoid source restriction
     const apiUrl = `https://corsproxy.io/?https://opencitations.net/index/api/v1/citations/${encodeURIComponent(doi)}`;
     try {
         const response = await fetch(apiUrl);
