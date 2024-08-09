@@ -1,51 +1,58 @@
 async function findCommonCitations() {
-    const article1 = document.getElementById('article1').value;
-    const article2 = document.getElementById('article2').value;
+    const inputs = document.querySelectorAll('.article-input');
     const resultsDiv = document.getElementById('results');
 
     resultsDiv.innerHTML = 'Searching...';
 
     try {
-        const doi1 = await getDOI(article1);
-        const doi2 = await getDOI(article2);
-
-        if (!doi1 || !doi2) {               
-            resultsDiv.innerHTML = 'Could not find DOI for one or both articles. Please check your input.';
+        const dois = await Promise.all(Array.from(inputs).map(input => getDOI(input.value)));
+        
+        if (dois.some(doi => !doi)) {
+            resultsDiv.innerHTML = 'Could not find DOI for one or more articles. Please check your input.';
             return;
         }
 
         // Update URL with DOIs
-        const encodedDoi1 = encodeURIComponent(doi1);
-        const encodedDoi2 = encodeURIComponent(doi2);
-        const newUrl = `${window.location.pathname}?doi1=${encodedDoi1}&doi2=${encodedDoi2}`;
+        const encodedDois = dois.map(doi => encodeURIComponent(doi));
+        const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index+1}=${doi}`).join('&')}`;
         history.pushState({}, '', newUrl);
 
-        const references1 = await getReferences(doi1);
-        const references2 = await getReferences(doi2);
+        const allReferences = await Promise.all(dois.map(doi => getReferences(doi)));
 
-        if (references1.length === 0 && references2.length === 0) {
-            resultsDiv.innerHTML = 'No references found for both articles. The API might not have data for these DOIs.';
+        if (allReferences.every(refs => refs.length === 0)) {
+            resultsDiv.innerHTML = 'No references found for any of the articles. The API might not have data for these DOIs.';
             return;
         }
 
-        if (references1.length === 0) {
-            resultsDiv.innerHTML = `No references found for the first article (${doi1}). The API might not have data for this DOI.`;
-            return;
-        }
+        const commonReferences = allReferences.reduce((common, refs, index) => {
+            if (index === 0) return refs;
+            return common.filter(ref1 => 
+                refs.some(ref2 => ref1.citing === ref2.citing)
+            );
+        }, []);
 
-        if (references2.length === 0) {
-            resultsDiv.innerHTML = `No references found for the second article (${doi2}). The API might not have data for this DOI.`;
-            return;
-        }
-
-        const commonReferences = references1.filter(ref1 => 
-            references2.some(ref2 => ref1.citing === ref2.citing)
-        );
-
-        await displayResults(commonReferences, doi1, doi2, references1.length, references2.length);
+        await displayResults(commonReferences, dois, allReferences.map(refs => refs.length));
     } catch (error) {
         resultsDiv.innerHTML = 'An error occurred: ' + error.message;
         console.error('Error in findCommonCitations:', error);
+    }
+}
+
+function addInput() {
+    const inputContainer = document.getElementById('inputContainer');
+    const newInput = document.createElement('div');
+    newInput.className = 'input-group';
+    newInput.innerHTML = `
+        <input type="text" class="article-input" placeholder="Title or DOI" size="50">
+        <button class="remove-input" onclick="removeInput(this)">-</button>
+    `;
+    inputContainer.appendChild(newInput);
+}
+
+function removeInput(button) {
+    const inputGroup = button.parentElement;
+    if (document.querySelectorAll('.input-group').length > 1) {
+        inputGroup.remove();
     }
 }
 
@@ -108,14 +115,8 @@ async function getPublicationTitle(doi) {
 }
 
 // Event listeners for search via Enter key
-document.getElementById('article1').addEventListener('keyup', function(event) {
-    if (event.key === 'Enter') {
-        findCommonCitations();
-    }
-});
-
-document.getElementById('article2').addEventListener('keyup', function(event) {
-    if (event.key === 'Enter') {
+document.addEventListener('keyup', function(event) {
+    if (event.target.classList.contains('article-input') && event.key === 'Enter') {
         findCommonCitations();
     }
 });
@@ -130,16 +131,26 @@ function getUrlParameter(name) {
 
 // Check for DOI parameters & search on page load if there
 window.addEventListener('load', function() {
-    const doi1 = getUrlParameter('doi1');
-    const doi2 = getUrlParameter('doi2');
-    if (doi1 && doi2) {
-        document.getElementById('article1').value = doi1;
-        document.getElementById('article2').value = doi2;
+    const inputContainer = document.getElementById('inputContainer');
+    let index = 1;
+    let doi = getUrlParameter(`doi${index}`);
+    
+    while (doi) {
+        if (index > 1) {
+            addInput();
+        }
+        const inputs = document.querySelectorAll('.article-input');
+        inputs[index - 1].value = doi;
+        index++;
+        doi = getUrlParameter(`doi${index}`);
+    }
+    
+    if (index > 1) {
         findCommonCitations();
     }
 });
 
-async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2) {
+async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
     let validReferencesCount = 0;
     
@@ -182,7 +193,9 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
     }
     
     // ref.s count
-    html += `<p style="text-align: center; color: #888; font-size: 0.8em;">${refCount1}/${refCount2} references for the 1st/2nd entry found (${doi1}/${doi2})</p>`;
+    html += `<p style="text-align: center; color: #888; font-size: 0.8em;">`;
+    html += dois.map((doi, index) => `${refCounts[index]} references for entry ${index + 1} (${doi})`).join('<br>');
+    html += `</p>`;
     
     resultsDiv.innerHTML = html;
 }
