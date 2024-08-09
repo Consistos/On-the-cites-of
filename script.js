@@ -153,7 +153,7 @@ async function displayResults(commonReferences, doi1, doi2, refCount1, refCount2
         html += `<table style="width: 100%; table-layout: fixed; margin-bottom: 10px;">
             <tr>
                 <th style="width: 70%;">Title</th>
-                <th style="width: 30%;">DOI</th>
+                <th style="width: 30%; text-align: center;">DOI</th>
             </tr>`;
         
         // Fetch all titles concurrently
