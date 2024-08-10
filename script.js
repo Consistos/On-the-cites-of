@@ -8,7 +8,7 @@ async function findCommonCitations() {
         const dois = await Promise.all(Array.from(inputs).map(input => getDOI(input.value)));
         
         if (dois.some(doi => !doi)) {
-            resultsDiv.innerHTML = 'Could not find DOI for one or more articles. Please check your input.';
+            resultsDiv.innerHTML = 'Could not find DOI for one or more articles';
             return;
         }
 
@@ -51,21 +51,26 @@ function addInput() {
 
 function removeInput(button) {
     const inputGroup = button.parentElement;
-    if (document.querySelectorAll('.input-group').length > 1) {
+    if (document.querySelectorAll('.input-group').length > 2) {
         inputGroup.remove();
     }
 }
 
 async function getDOI(input) {
+
+    const inputDOI = input.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
+    const inputTitle = input.trim()
+    const baseUrl = 'https://api.crossref.org/works';
+    const query = encodeURIComponent(title);
+    const url = `${baseUrl}?query.bibliographic=${query}&rows=1&select=DOI`;
+
     // Sanitize and validate the DOI
-    const sanitizedInput = input.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
-    
-    if (/^10\.\d{4,9}\/[-._;()/:A-Z0-9]+$/i.test(sanitizedInput)) {
-        return sanitizedInput; 
+    if (/^10\.\d{4,9}\/[-._;()/:A-Z0-9]+$/i.test(inputDOI)) {
+        return inputDOI;
     }
     
     try {
-        const response = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(sanitizedInput)}&rows=1`);
+        const response = await fetch(`${baseUrl}?query=${encodeURIComponent(inputDOI)}&rows=1`);
         const data = await response.json();
         
         if (data.message.items.length > 0) {
@@ -73,9 +78,21 @@ async function getDOI(input) {
         }
     } catch (error) {
         console.error('Error fetching DOI:', error);
+        return null;
     }
-    
-    return null;
+    else try{
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.message.items && data.message.items.length > 0) {
+          return data.message.items[0].DOI;
+        } else {
+          return null;
+        }
+      } catch (error) {
+        console.error('Error fetching DOI:', error);
+        return null;
+      }
 }
 
 async function getReferences(doi) {
@@ -189,7 +206,7 @@ async function displayResults(commonReferences, dois, refCounts) {
     }
     
     if (validReferencesCount === 0 && commonReferences.length > 0) {
-        html = "<p style='text-align: center;'>Common citations found, but no titles available.</p>";
+        html = "<p style='text-align: center;'>Citations in common found, but no titles available.</p>";
     }
     
     // ref.s count
