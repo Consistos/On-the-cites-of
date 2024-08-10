@@ -57,11 +57,10 @@ function removeInput(button) {
 }
 
 async function getDOI(input) {
-
     const inputDOI = input.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
-    const inputTitle = input.trim()
+    const inputTitle = input.trim();
     const baseUrl = 'https://api.crossref.org/works';
-    const query = encodeURIComponent(title);
+    const query = encodeURIComponent(inputTitle);
     const url = `${baseUrl}?query.bibliographic=${query}&rows=1&select=DOI`;
 
     // Sanitize and validate the DOI
@@ -70,29 +69,28 @@ async function getDOI(input) {
     }
     
     try {
+        // First, try to fetch using the input as a potential DOI
         const response = await fetch(`${baseUrl}?query=${encodeURIComponent(inputDOI)}&rows=1`);
         const data = await response.json();
         
         if (data.message.items.length > 0) {
             return data.message.items[0].DOI;
         }
+
+        // If the above fails, try to fetch using the input as a title
+        const titleResponse = await fetch(url);
+        const titleData = await titleResponse.json();
+
+        if (titleData.message.items && titleData.message.items.length > 0) {
+            return titleData.message.items[0].DOI;
+        }
+
+        // If both attempts fail, return null
+        return null;
     } catch (error) {
         console.error('Error fetching DOI:', error);
         return null;
     }
-    else try{
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.message.items && data.message.items.length > 0) {
-          return data.message.items[0].DOI;
-        } else {
-          return null;
-        }
-      } catch (error) {
-        console.error('Error fetching DOI:', error);
-        return null;
-      }
 }
 
 async function getReferences(doi) {
