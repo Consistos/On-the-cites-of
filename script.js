@@ -149,11 +149,31 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
-// Hide body initially
-document.body.style.visibility = 'hidden';
+// Create and show loading overlay
+function showLoadingOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'white';
+    overlay.style.zIndex = '9999';
+    document.body.appendChild(overlay);
+}
+
+// Remove loading overlay
+function removeLoadingOverlay() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
 
 // Function to initialize the page
 function initializePage() {
+    showLoadingOverlay();
     const inputContainer = document.getElementById('inputContainer');
     let index = 1;
     let doi = getUrlParameter(`doi${index}`);
@@ -177,16 +197,15 @@ function initializePage() {
         doi = getUrlParameter(`doi${index}`);
     }
     
-    // Show the body after processing
-    document.body.style.visibility = 'visible';
+    removeLoadingOverlay();
     
     if (dois.length > 1) {
         findCommonCitations(dois);
     }
 }
 
-// Run initialization after the page has fully loaded
-window.addEventListener('load', initializePage);
+// Run initialization after the DOM content has loaded
+document.addEventListener('DOMContentLoaded', initializePage);
 
 async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
