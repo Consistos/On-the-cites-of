@@ -162,11 +162,12 @@ window.addEventListener('load', function() {
     let doi = getUrlParameter(`doi${index}`);
     const dois = [];
     
-    // Remove all existing input fields except the first one
+    // Remove all existing input fields
     const inputs = document.querySelectorAll('.input-group');
-    for (let i = 1; i < inputs.length; i++) {
-        inputs[i].remove();
-    }
+    inputs.forEach(input => input.remove());
+    
+    // Always add the first input field
+    addInput();
     
     while (doi) {
         dois.push(doi);
