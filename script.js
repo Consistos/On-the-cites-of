@@ -76,7 +76,7 @@ async function getDOI(input) {
         if (data.message.items.length > 0) {
             return data.message.items[0].DOI;
         }
-
+        // Non-apparent in the placeholders as the API always seems to return unrelated DOIs
         // If the above fails, try to fetch using the input as a title
         const titleResponse = await fetch(url);
         const titleData = await titleResponse.json();
@@ -203,9 +203,9 @@ async function displayResults(commonReferences, dois, refCounts) {
         html += `</table>`;
     }
     
-    if (validReferencesCount === 0 && commonReferences.length > 0) {
+  /*  if (validReferencesCount === 0 && commonReferences.length > 0) {
         html = "<p style='text-align: center;'>Citations in common found, but no titles available.</p>";
-    }
+    }*/
     
     // ref.s count
     html += `<p style="text-align: center; color: #888; font-size: 0.8em;">`;

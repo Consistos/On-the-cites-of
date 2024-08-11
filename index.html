@@ -10,16 +10,16 @@
     <h1>Search publication(s) that cite these</h1>
     <div id="inputContainer">
         <div class="input-group">
-            <input type="text" class="article-input" placeholder="Title or DOI" size="50">
-            <button onclick="removeInput(this)">-</button>
+            <input type="text" class="article-input" placeholder="DOI" size="50"> <!-- No conversion from titles as the crossref API always seems to return unrelated DOIs -->
         </div>
         <div class="input-group">
-            <input type="text" class="article-input" placeholder="Title or DOI" size="50">
+            <input type="text" class="article-input" placeholder="DOI" size="50">
             <button class="remove-input" onclick="removeInput(this)">-</button>
         </div>
     </div>
-    <button onclick="addInput()">Add a publication</button>
     <button onclick="findCommonCitations()">Search</button>
+    <button onclick="addInput()">Add a publication</button>
+
     <div id="results"></div>
     <script src="script.js"></script>
 </body>
