@@ -43,7 +43,7 @@ function addInput() {
     const newInput = document.createElement('div');
     newInput.className = 'input-group';
     newInput.innerHTML = `
-        <input type="text" class="article-input" placeholder="Title or DOI" size="50">
+        <input type="text" class="article-input" placeholder="DOI" size="50">
         <button class="remove-input" onclick="removeInput(this)">-</button>
     `;
     inputContainer.appendChild(newInput);
@@ -115,7 +115,7 @@ async function getReferences(doi) {
 
 async function getPublicationTitle(doi) {
     try {
-        const response = await fetch(`https://corsproxy.io/?https://api.A.org/works/${doi}`);
+        const response = await fetch(`https://corsproxy.io/?https://api.crossref.org/works/${doi}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
