@@ -1,21 +1,26 @@
-async function findCommonCitations() {
+async function findCommonCitations(initialDois = null) {
     const inputs = document.querySelectorAll('.article-input');
     const resultsDiv = document.getElementById('results');
 
     resultsDiv.innerHTML = 'Searching...';
 
     try {
-        const dois = await Promise.all(Array.from(inputs).map(input => getDOI(input.value)));
-        
-        if (dois.some(doi => !doi)) {
-            resultsDiv.innerHTML = 'Could not find DOI for one or more articles';
-            return;
-        }
+        let dois;
+        if (initialDois) {
+            dois = initialDois;
+        } else {
+            dois = await Promise.all(Array.from(inputs).map(input => getDOI(input.value)));
+            
+            if (dois.some(doi => !doi)) {
+                resultsDiv.innerHTML = 'Could not find DOI for one or more articles';
+                return;
+            }
 
-        // Update URL with DOIs
-        const encodedDois = dois.map(doi => encodeURIComponent(doi));
-        const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index+1}=${doi}`).join('&')}`;
-        history.pushState({}, '', newUrl);
+            // Update URL with DOIs only if they weren't provided initially
+            const encodedDois = dois.map(doi => encodeURIComponent(doi));
+            const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index+1}=${doi}`).join('&')}`;
+            history.pushState({}, '', newUrl);
+        }
 
         const allReferences = await Promise.all(dois.map(doi => getReferences(doi)));
 
@@ -149,8 +154,10 @@ window.addEventListener('load', function() {
     const inputContainer = document.getElementById('inputContainer');
     let index = 1;
     let doi = getUrlParameter(`doi${index}`);
+    const dois = [];
     
     while (doi) {
+        dois.push(doi);
         if (index > 1) {
             addInput();
         }
@@ -160,8 +167,8 @@ window.addEventListener('load', function() {
         doi = getUrlParameter(`doi${index}`);
     }
     
-    if (index > 1) {
-        findCommonCitations();
+    if (dois.length > 1) {
+        findCommonCitations(dois);
     }
 });
 
