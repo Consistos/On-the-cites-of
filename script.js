@@ -156,13 +156,19 @@ window.addEventListener('load', function() {
     let doi = getUrlParameter(`doi${index}`);
     const dois = [];
     
+    // Remove all existing input fields except the first one
+    const inputs = document.querySelectorAll('.input-group');
+    for (let i = 1; i < inputs.length; i++) {
+        inputs[i].remove();
+    }
+    
     while (doi) {
         dois.push(doi);
         if (index > 1) {
             addInput();
         }
-        const inputs = document.querySelectorAll('.article-input');
-        inputs[index - 1].value = doi;
+        const currentInputs = document.querySelectorAll('.article-input');
+        currentInputs[index - 1].value = doi;
         index++;
         doi = getUrlParameter(`doi${index}`);
     }
