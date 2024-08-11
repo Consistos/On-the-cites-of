@@ -216,12 +216,21 @@ document.addEventListener('DOMContentLoaded', () => {
 async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
     let validReferencesCount = 0;
+    let html = '';
     
-    // Display number of matching references above the table
-    let html = `<p style="text-align: center; margin-bottom: 10px;">${commonReferences.length} results</p>`;
+    // Fetch all titles concurrently
+    const titlePromises = commonReferences.map(ref => getPublicationTitle(ref.citing));
+    const titles = await Promise.all(titlePromises);
     
-    if (commonReferences.length === 0) {
-        html += `<p>No results.</p>`;
+    // Filter valid references and count them
+    const validReferences = commonReferences.filter((ref, i) => titles[i] !== 'Title not available');
+    validReferencesCount = validReferences.length;
+    
+    // Display number of valid references above the table
+    html += `<p style="text-align: center; margin-bottom: 10px;">${validReferencesCount} results</p>`;
+    
+    if (validReferencesCount === 0) {
+        html += `<p>No results with available titles.</p>`;
     } else {
         // Create table with the same width as input fields plus their labels
         html += `<table style="width: 100%; table-layout: fixed; margin-bottom: 10px;">
@@ -230,30 +239,23 @@ async function displayResults(commonReferences, dois, refCounts) {
                 <th style="width: 30%; text-align: center;">DOI</th>
             </tr>`;
         
-        // Fetch all titles concurrently
-        const titlePromises = commonReferences.map(ref => getPublicationTitle(ref.citing));
-        const titles = await Promise.all(titlePromises);
-        
-        for (let i = 0; i < commonReferences.length; i++) {
-            const ref = commonReferences[i];
-            const title = titles[i];
-            if (title !== 'Title not available') {
-                validReferencesCount++;
-                const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
-                const doiUrl = `https://doi.org/${ref.citing}`;
-                html += `<tr>
-                    <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank" style="color: blue; text-decoration: none;">${title}</a></td>
-                    <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank" style="color: blue; text-decoration: none;">${ref.citing}</a></td>
-                </tr>`;
-            }
+        for (let i = 0; i < validReferences.length; i++) {
+            const ref = validReferences[i];
+            const title = titles[commonReferences.indexOf(ref)];
+            const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
+            const doiUrl = `https://doi.org/${ref.citing}`;
+            html += `<tr>
+                <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank" style="color: blue; text-decoration: none;">${title}</a></td>
+                <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank" style="color: blue; text-decoration: none;">${ref.citing}</a></td>
+            </tr>`;
         }
         
         html += `</table>`;
     }
     
-  /*  if (validReferencesCount === 0 && commonReferences.length > 0) {
-        html = "<p style='text-align: center;'>Citations in common found, but no titles available.</p>";
-    }*/
+    if (validReferencesCount === 0 && commonReferences.length > 0) {
+        html += "<p style='text-align: center;'>Citations in common found, but no titles available.</p>";
+    }
     
     // ref.s count
     html += `<p style="text-align: center; color: #888; font-size: 0.8em;">`;
