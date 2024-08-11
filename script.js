@@ -149,14 +149,11 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
-// Hide input container initially and show it after processing
-document.addEventListener('DOMContentLoaded', function() {
-    const inputContainer = document.getElementById('inputContainer');
-    inputContainer.style.visibility = 'hidden';
-});
+// Hide body initially
+document.body.style.visibility = 'hidden';
 
-// Check for DOI parameters & search on page load if there
-window.addEventListener('load', function() {
+// Function to initialize the page
+function initializePage() {
     const inputContainer = document.getElementById('inputContainer');
     let index = 1;
     let doi = getUrlParameter(`doi${index}`);
@@ -180,13 +177,16 @@ window.addEventListener('load', function() {
         doi = getUrlParameter(`doi${index}`);
     }
     
-    // Show input container after processing
-    inputContainer.style.visibility = 'visible';
+    // Show the body after processing
+    document.body.style.visibility = 'visible';
     
     if (dois.length > 1) {
         findCommonCitations(dois);
     }
-});
+}
+
+// Run initialization after the page has fully loaded
+window.addEventListener('load', initializePage);
 
 async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
