@@ -172,40 +172,46 @@ function removeLoadingOverlay() {
 }
 
 // Function to initialize the page
-function initializePage() {
-    showLoadingOverlay();
-    const inputContainer = document.getElementById('inputContainer');
-    let index = 1;
-    let doi = getUrlParameter(`doi${index}`);
-    const dois = [];
-    
-    // Remove all existing input fields
-    const inputs = document.querySelectorAll('.input-group');
-    inputs.forEach(input => input.remove());
-    
-    // Always add the first input field
-    addInput();
-    
-    while (doi) {
-        dois.push(doi);
-        if (index > 1) {
-            addInput();
+async function initializePage() {
+    try {
+        const inputContainer = document.getElementById('inputContainer');
+        let index = 1;
+        let doi = getUrlParameter(`doi${index}`);
+        const dois = [];
+        
+        // Remove all existing input fields
+        const inputs = document.querySelectorAll('.input-group');
+        inputs.forEach(input => input.remove());
+        
+        // Always add the first input field
+        addInput();
+        
+        while (doi) {
+            dois.push(doi);
+            if (index > 1) {
+                addInput();
+            }
+            const currentInputs = document.querySelectorAll('.article-input');
+            currentInputs[index - 1].value = doi;
+            index++;
+            doi = getUrlParameter(`doi${index}`);
         }
-        const currentInputs = document.querySelectorAll('.article-input');
-        currentInputs[index - 1].value = doi;
-        index++;
-        doi = getUrlParameter(`doi${index}`);
-    }
-    
-    removeLoadingOverlay();
-    
-    if (dois.length > 1) {
-        findCommonCitations(dois);
+        
+        if (dois.length > 1) {
+            await findCommonCitations(dois);
+        }
+    } catch (error) {
+        console.error('Error during page initialization:', error);
+    } finally {
+        removeLoadingOverlay();
     }
 }
 
 // Run initialization after the DOM content has loaded
-document.addEventListener('DOMContentLoaded', initializePage);
+document.addEventListener('DOMContentLoaded', () => {
+    showLoadingOverlay();
+    initializePage();
+});
 
 async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
