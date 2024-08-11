@@ -215,16 +215,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
-    let validReferencesCount = 0;
     let html = '';
     
     // Fetch all titles concurrently
     const titlePromises = commonReferences.map(ref => getPublicationTitle(ref.citing));
     const titles = await Promise.all(titlePromises);
     
-    // Filter valid references and count them
-    const validReferences = commonReferences.filter((ref, i) => titles[i] !== 'Title not available');
-    validReferencesCount = validReferences.length;
+    // Group references by title
+    const groupedReferences = {};
+    commonReferences.forEach((ref, index) => {
+        const title = titles[index];
+        if (title !== 'Title not available') {
+            if (!groupedReferences[title]) {
+                groupedReferences[title] = [];
+            }
+            groupedReferences[title].push(ref.citing);
+        }
+    });
+    
+    const validReferencesCount = Object.keys(groupedReferences).length;
     
     // Display number of valid references above the table
     html += `<p style="text-align: center; margin-bottom: 10px;">${validReferencesCount} results</p>`;
@@ -236,17 +245,15 @@ async function displayResults(commonReferences, dois, refCounts) {
         html += `<table style="width: 100%; table-layout: fixed; margin-bottom: 10px;">
             <tr>
                 <th style="width: 70%;">Title</th>
-                <th style="width: 30%; text-align: center;">DOI</th>
+                <th style="width: 30%; text-align: center;">DOI(s)</th>
             </tr>`;
         
-        for (let i = 0; i < validReferences.length; i++) {
-            const ref = validReferences[i];
-            const title = titles[commonReferences.indexOf(ref)];
-            const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.citing)}`;
-            const doiUrl = `https://doi.org/${ref.citing}`;
+        for (const [title, dois] of Object.entries(groupedReferences)) {
+            const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
+            const doiLinks = dois.map(doi => `<a href="https://doi.org/${doi}" target="_blank" style="color: blue; text-decoration: none;">${doi}</a>`).join('<br>');
             html += `<tr>
                 <td style="word-wrap: break-word;"><a href="${scholarUrl}" target="_blank" style="color: blue; text-decoration: none;">${title}</a></td>
-                <td style="word-wrap: break-word;"><a href="${doiUrl}" target="_blank" style="color: blue; text-decoration: none;">${ref.citing}</a></td>
+                <td style="word-wrap: break-word;">${doiLinks}</td>
             </tr>`;
         }
         
