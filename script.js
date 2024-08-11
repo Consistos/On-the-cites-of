@@ -158,11 +158,13 @@ window.addEventListener('load', function() {
     
     while (doi) {
         dois.push(doi);
-        if (index > 1) {
+        if (index > 1 && index < 3) {  // Only add one additional input field
             addInput();
         }
         const inputs = document.querySelectorAll('.article-input');
-        inputs[index - 1].value = doi;
+        if (index <= inputs.length) {
+            inputs[index - 1].value = doi;
+        }
         index++;
         doi = getUrlParameter(`doi${index}`);
     }
