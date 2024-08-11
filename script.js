@@ -149,6 +149,12 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
+// Hide input container initially
+document.addEventListener('DOMContentLoaded', function() {
+    const inputContainer = document.getElementById('inputContainer');
+    inputContainer.style.display = 'none';
+});
+
 // Check for DOI parameters & search on page load if there
 window.addEventListener('load', function() {
     const inputContainer = document.getElementById('inputContainer');
@@ -172,6 +178,9 @@ window.addEventListener('load', function() {
         index++;
         doi = getUrlParameter(`doi${index}`);
     }
+    
+    // Show input container after processing
+    inputContainer.style.display = 'block';
     
     if (dois.length > 1) {
         findCommonCitations(dois);
