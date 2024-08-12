@@ -56,7 +56,7 @@ function addInput() {
 
 function removeInput(button) {
     const inputGroup = button.parentElement;
-    if (document.querySelectorAll('.input-group').length > 2) {
+    if (document.querySelectorAll('.input-group').length > 1) {
         inputGroup.remove();
     }
 }
@@ -183,7 +183,8 @@ async function initializePage() {
         const inputs = document.querySelectorAll('.input-group');
         inputs.forEach(input => input.remove());
         
-        // Always add the first input field
+        // Always add the first two input fields
+        addInput();
         addInput();
         
         while (doi) {
