@@ -198,6 +198,16 @@ async function initializePage() {
             doi = getUrlParameter(`doi${index}`);
         }
         
+        // Remove any extra empty input fields
+        const finalInputs = document.querySelectorAll('.article-input');
+        for (let i = finalInputs.length - 1; i >= 2; i--) {
+            if (finalInputs[i].value === '') {
+                finalInputs[i].parentElement.remove();
+            } else {
+                break;
+            }
+        }
+        
         if (dois.length > 1) {
             await findCommonCitations(dois);
         }
