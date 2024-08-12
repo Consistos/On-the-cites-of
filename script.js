@@ -2,6 +2,14 @@ async function findCommonCitations(initialDois = null) {
     const inputs = document.querySelectorAll('.article-input');
     const resultsDiv = document.getElementById('results');
 
+    // Filter out empty inputs
+    const nonEmptyInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
+
+    if (nonEmptyInputs.length === 0) {
+        resultsDiv.innerHTML = 'Please enter at least one DOI or article title.';
+        return;
+    }
+
     resultsDiv.innerHTML = 'Searching...';
 
     try {
@@ -9,7 +17,7 @@ async function findCommonCitations(initialDois = null) {
         if (initialDois) {
             dois = initialDois;
         } else {
-            dois = await Promise.all(Array.from(inputs).map(input => getDOI(input.value)));
+            dois = await Promise.all(nonEmptyInputs.map(input => getDOI(input.value)));
             
             if (dois.some(doi => !doi)) {
                 resultsDiv.innerHTML = 'Could not find DOI for one or more articles';
