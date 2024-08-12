@@ -49,7 +49,6 @@ function addInput() {
     newInput.className = 'input-group responsive-input-group';
     newInput.innerHTML = `
         <input type="text" class="article-input" placeholder="DOI" size="50">
-        <button class="remove-input" onclick="removeInput(this)">-</button>
     `;
     inputContainer.appendChild(newInput);
     updateRemoveButtons();
@@ -57,17 +56,27 @@ function addInput() {
 
 function removeInput(button) {
     const inputGroup = button.parentElement;
-    if (document.querySelectorAll('.input-group').length > 1) {
-        inputGroup.remove();
-        updateRemoveButtons();
-    }
+    inputGroup.remove();
+    updateRemoveButtons();
 }
 
 function updateRemoveButtons() {
-    const removeButtons = document.querySelectorAll('.remove-input');
     const inputGroups = document.querySelectorAll('.input-group');
-    removeButtons.forEach((button, index) => {
-        button.style.display = inputGroups.length > 1 ? 'inline-block' : 'none';
+    inputGroups.forEach((group, index) => {
+        let removeButton = group.querySelector('.remove-input');
+        if (inputGroups.length > 1) {
+            if (!removeButton) {
+                removeButton = document.createElement('button');
+                removeButton.className = 'remove-input';
+                removeButton.onclick = function() { removeInput(this); };
+                removeButton.textContent = '-';
+                group.appendChild(removeButton);
+            }
+        } else {
+            if (removeButton) {
+                removeButton.remove();
+            }
+        }
     });
 }
 
