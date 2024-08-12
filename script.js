@@ -6,7 +6,7 @@ async function findCommonCitations(initialDois = null) {
     const nonEmptyInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
 
     if (nonEmptyInputs.length === 0) {
-        resultsDiv.innerHTML = 'Please enter at least one DOI or article title.';
+        resultsDiv.innerHTML = 'Please enter at least one DOI.'; // or article title
         return;
     }
 
