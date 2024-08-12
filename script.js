@@ -277,7 +277,7 @@ async function displayResults(commonReferences, dois, refCounts) {
     
     // ref.s count
     html += `<p style="text-align: center; color: #888; font-size: 0.8em;">`;
-    html += dois.map((doi, index) => `${refCounts[index]} references for entry ${index + 1}`).join('<br>');
+    html += dois.map((doi, index) => `${refCounts[index]} citation(s) for entry ${index + 1}`).join('<br>');
     html += `</p>`;
     
     resultsDiv.innerHTML = html;
