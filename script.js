@@ -237,7 +237,7 @@ async function displayResults(commonReferences, dois, refCounts) {
     const validReferencesCount = Object.keys(groupedReferences).length;
     
     // Display number of valid references above the table
-    html += `<p style="text-align: center; margin-bottom: 10px;">${validReferencesCount} results</p>`;
+    html += `<p style="text-align: center; margin-bottom: 10px;">${validReferencesCount} ${validReferencesCount === 1 ? 'result' : 'results'}</p>`;
     
     if (validReferencesCount === 0) {
         html += `<p>No results with available titles.</p>`;
@@ -267,7 +267,7 @@ async function displayResults(commonReferences, dois, refCounts) {
     
     // ref.s count
     html += `<p style="text-align: center; color: #888; font-size: 0.8em;">`;
-    html += dois.map((doi, index) => `${refCounts[index]} references for entry ${index + 1} (${doi})`).join('<br>');
+    html += dois.map((doi, index) => `${refCounts[index]} references for entry ${index + 1}`).join('<br>');
     html += `</p>`;
     
     resultsDiv.innerHTML = html;
