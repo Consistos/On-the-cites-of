@@ -46,19 +46,29 @@ async function findCommonCitations(initialDois = null) {
 function addInput() {
     const inputContainer = document.getElementById('inputContainer');
     const newInput = document.createElement('div');
-    newInput.className = 'input-group';
+    newInput.className = 'input-group responsive-input-group';
     newInput.innerHTML = `
         <input type="text" class="article-input" placeholder="DOI" size="50">
         <button class="remove-input" onclick="removeInput(this)">-</button>
     `;
     inputContainer.appendChild(newInput);
+    updateRemoveButtons();
 }
 
 function removeInput(button) {
     const inputGroup = button.parentElement;
     if (document.querySelectorAll('.input-group').length > 1) {
         inputGroup.remove();
+        updateRemoveButtons();
     }
+}
+
+function updateRemoveButtons() {
+    const removeButtons = document.querySelectorAll('.remove-input');
+    const inputGroups = document.querySelectorAll('.input-group');
+    removeButtons.forEach((button, index) => {
+        button.style.display = inputGroups.length > 1 ? 'inline-block' : 'none';
+    });
 }
 
 async function getDOI(input) {
@@ -211,6 +221,8 @@ async function initializePage() {
         if (dois.length > 1) {
             await findCommonCitations(dois);
         }
+        
+        updateRemoveButtons();
     } catch (error) {
         console.error('Error during page initialization:', error);
     } finally {
