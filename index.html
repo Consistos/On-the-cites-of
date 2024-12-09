@@ -2,71 +2,64 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search publication(s) that cite all these ones</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Search publication(s) that cite all these</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <a href="raisondetre.html" id="about-link">About this tool</a>
-    <h1>Search publication(s) that cite all these ones</h1>
-    <div id="inputContainer">
-        <div class="input-group">
-            <input type="text" class="article-input" placeholder="DOI" size="50"> <!-- No conversion from titles as the crossref API always seems to return unrelated DOIs -->
+<body class="bg-gray-50 min-h-screen">
+    <header class="relative mb-4 sm:mb-8 pt-4 sm:pt-8">
+        <h1 class="text-base sm:text-lg text-gray-800 text-left sm:text-center px-4 sm:px-16 max-w-[250px] sm:max-w-none">
+            <a href="index.html" id="home" class="text-grey-600 hover:text-blue-800 inline-block text-center sm:inline sm:text-left">
+                <span class="sm:hidden">Search publication(s)<br>that cite all these</span>
+                <span class="hidden sm:inline">Search publication(s) that cite all these</span>
+            </a>
+        </h1>
+        <div class="absolute right-4 sm:right-10 top-4 sm:top-8">
+            <a href="raisondetre.html" id="about-link" class="text-grey-600 hover:text-blue-800">About</a>
         </div>
-        <div class="input-group">
-            <input type="text" class="article-input" placeholder="DOI" size="50">
-            <button class="remove-input" onclick="removeInput(this)">-</button>
+    </header>
+    <div id="errorMessage" class="hidden max-w-2xl mx-auto mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg"></div>
+    <div class="max-w-[1400px] mx-auto">
+        <div class="max-w-2xl mx-auto">
+            <div id="inputContainer" class="space-y-4 flex flex-col items-center">
+                <div class="input-group flex gap-2 w-full max-w-[800px] px-4 sm:px-0">
+                    <div class="relative flex-grow">
+                        <textarea class="article-input block w-full px-4 py-2 text-base text-gray-900 border border-gray-300 rounded-lg bg-gray-50 resize-y" placeholder="Title or DOI" rows="2"></textarea>
+                        <button class="clear-input absolute right-2 top-2 text-gray-400 hover:text-gray-600 hidden" onclick="clearInput(this)">
+                            <span class="text-xl">×</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-group flex gap-2 w-full max-w-[800px] px-4 sm:px-0">
+                    <div class="relative flex-grow">
+                        <textarea class="article-input block w-full px-4 py-2 text-base text-gray-900 border border-gray-300 rounded-lg bg-gray-50 resize-y" placeholder="Title or DOI" rows="2"></textarea>
+                        <button class="clear-input absolute right-2 top-2 text-gray-400 hover:text-gray-600 hidden" onclick="clearInput(this)">
+                            <span class="text-xl">×</span>
+                        </button>
+                    </div>
+                    <button class="remove-input h-auto bg-white hover:bg-red-500 text-gray-600 hover:text-white px-4 rounded-lg transition-colors flex-shrink-0 group relative flex items-center justify-center" onclick="removeInput(this)">
+                        <span class="text-xl">−</span>
+                        <span class="invisible group-hover:visible absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap z-10">Remove</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-center space-x-4 mt-8">
+                <button onclick="findCommonCitations()" class="bg-blue-400 hover:bg-blue-700 text-white h-12 px-6 text-lg rounded-lg transition-colors flex items-center justify-center">
+                    <img src="assets/search icon.png" alt="Search" class="h-6 w-6">
+                </button>
+                <button onclick="addInput()" class="bg-white hover:bg-green-600 hover:text-white text-slate-600 h-12 px-6 text-lg rounded-lg transition-colors flex items-center justify-center">
+                    Add a publication
+                </button>
+            </div>
+
+        </div>
+
+        <div id="results" class="mt-8 container mx-auto px-4 max-w-[1200px] mx-auto">
+            <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+            </div>
         </div>
     </div>
-    <button onclick="findCommonCitations()">Search</button>
-    <button onclick="addInput()">Add a publication</button>
-
-    <div id="results"></div>
     <script src="script.js"></script>
 </body>
-<style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1300px;
-            margin: 0 auto;
-            padding: 20px;
-            position: relative;
-        }
-        input {
-            width: 77%;
-            padding: 10px;
-            max-width: 700px;
-            margin: 8px 0;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-            margin: 8px 0;
-        }
-        #results {
-            margin-top: 20px;
-        }
-        #results a {
-            color: blue;
-            text-decoration: none;
-        }
-        #results a:hover {
-            text-decoration: underline;
-        }
-        #results td a:hover {
-            text-decoration: underline;
-        }
-        #about-link {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            text-decoration: none;
-            color: #007bff;
-        }
-        #about-link:hover {
-            text-decoration: underline;
-        }
-    </style>
 </html>
