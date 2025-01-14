@@ -79,23 +79,57 @@ async function findCommonCitations(initialDois = null) {
 }
 
 async function getDOI(input) {
-    const sanitizedInput = input.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
+    const sanitizedInput = input.trim();
     
-    if (sanitizedInput.startsWith('10.')) {
-        const title = await getTitle(sanitizedInput);
+    // Handle DOI URLs or direct DOIs
+    const doiMatch = sanitizedInput.match(/(?:doi\.org\/|dx\.doi\.org\/|doi:)?(\d+\.\d+\/[^\/\s]+)/i);
+    if (doiMatch) {
+        const doi = doiMatch[1];
+        const title = await getTitle(doi);
         if (title) {
-            setCachedData(title, sanitizedInput);
+            setCachedData(title, doi);
         }
-        return sanitizedInput;
+        return doi;
     }
 
-    // Check cache first using the input as potential title
+    // Handle arXiv URLs or IDs first (since they have a specific format)
+    const arxivMatch = sanitizedInput.match(/(?:arxiv\.org\/(?:abs|pdf)\/)?([0-9]{4}\.[0-9]+)(?:v\d+)?(?:\.pdf)?$/i);
+    if (arxivMatch) {
+        const arxivId = arxivMatch[1];
+        console.log('Extracted arXiv ID:', arxivId);
+        const doi = await extractArXivDOI(arxivId);
+        if (doi) {
+            const title = await getTitle(doi);
+            if (title) {
+                setCachedData(title, doi);
+            }
+            return doi;
+        }
+    }
+
+    // Handle PubMed URLs or IDs (after arXiv to prevent false matches)
+    const pubmedMatch = sanitizedInput.match(/(?:pubmed\.ncbi\.nlm\.nih\.gov\/|^PMC)?(\d{6,8})(?:\/)?$/i);
+    if (pubmedMatch || sanitizedInput.match(/^PMC\d{6,8}$/i)) {
+        const pmid = pubmedMatch ? pubmedMatch[1] : sanitizedInput.replace(/^PMC/i, '');
+        console.log('Extracted PubMed ID:', pmid);
+        const doi = await extractPubMedDOI(pmid);
+        if (doi) {
+            const title = await getTitle(doi);
+            if (title) {
+                setCachedData(title, doi);
+            }
+            return doi;
+        }
+    }
+
+    // Check cache for title
     const cachedDoi = getCachedData(sanitizedInput);
     if (cachedDoi) {
         console.log(`Using cached DOI for title: ${sanitizedInput}`);
         return cachedDoi;
     }
 
+    // Fall back to CrossRef search
     const query = encodeURIComponent(sanitizedInput);
     const apiUrl = `https://api.crossref.org/works?query=${query}&rows=1&select=DOI&${emailParam}`;
 
@@ -105,7 +139,6 @@ async function getDOI(input) {
         
         if (data.message.items && data.message.items.length > 0) {
             const doi = data.message.items[0].DOI;
-            // Use the sanitized input as title since it's not a DOI
             setCachedData(sanitizedInput, doi);
             return doi;
         }
@@ -115,7 +148,75 @@ async function getDOI(input) {
     }
 }
 
-function addInput() {
+async function getReferences(doi) {
+    // Convert arXiv ID to DataCite DOI format if needed
+    const arxivMatch = doi.match(/^(?:arxiv:)?(\d{4}\.\d+)$|^10\.48550\/arXiv\.(\d{4}\.\d+)$/i);
+    if (arxivMatch) {
+        doi = `10.48550/arXiv.${arxivMatch[1] || arxivMatch[2]}`;
+    }
+
+    // Try multiple OpenCitations API endpoints
+    const endpoints = [
+        'https://opencitations.net/index/coci/api/v1/references/',
+        'https://opencitations.net/index/coci/api/v1/citations/',
+        'https://w3id.org/oc/index/coci/api/v1/references/',
+        'https://w3id.org/oc/index/coci/api/v1/citations/'
+    ];
+
+    for (const baseUrl of endpoints) {
+        try {
+            const response = await fetch(`${baseUrl}${encodeURIComponent(doi)}`);
+            if (!response.ok) {
+                console.error(`OpenCitations API error: ${response.status} for DOI ${doi} at ${baseUrl}`);
+                continue;
+            }
+            const data = await response.json();
+            if (data.length > 0) {
+                return {
+                    status: 'SUCCESS',
+                    data: data
+                };
+            }
+        } catch (error) {
+            console.error(`Error fetching references from ${baseUrl}:`, error);
+            continue;
+        }
+    }
+
+    // If we get here, no data was found in any endpoint
+    if (arxivMatch) {
+        console.log(`No citation data available for arXiv paper: ${arxivMatch[1] || arxivMatch[2]}`);
+        return {
+            status: 'NO_DATA',
+            data: [],
+            message: `This appears to be an arXiv paper (${arxivMatch[1] || arxivMatch[2]}). While we can confirm it exists, no citation data is currently available in OpenCitations. This is common for newer or preprint papers.`
+        };
+    }
+
+    return { status: 'NO_DATA', data: [] };
+}
+
+async function extractArXivDOI(arxivId) {
+    // Return the DataCite DOI format for arXiv papers
+    return `10.48550/arXiv.${arxivId}`;
+}
+
+async function extractPubMedDOI(pmid) {
+    const apiUrl = `https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?ids=${pmid}&format=json&versions=no&tool=citesof&email=${getEmail()}`;
+    try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if (data.records && data.records.length > 0 && data.records[0].doi) {
+            return data.records[0].doi;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching PubMed DOI:', error);
+        return null;
+    }
+}
+
+async function addInput() {
     const container = document.getElementById('inputContainer');
     const div = document.createElement('div');
     div.className = 'input-group flex gap-2 w-full max-w-[800px] px-4 sm:px-0';
@@ -206,74 +307,34 @@ async function handleCrossrefError(error, functionName) {
     throw error;
 }
 
-async function getReferences(doi) {
-    // Check cache first
-    const cacheKey = `references_${doi}`;
-    const cachedData = getCachedData(cacheKey);
-    if (cachedData) {
-        console.log(`Using cached references for DOI: ${doi}`);
-        return cachedData;
-    }
-
-    console.log(`Cache miss for DOI: ${doi}, fetching from API...`);
-    // CORS proxy to avoid source restriction
-    const apiUrl = `https://corsproxy.io/?https://opencitations.net/index/api/v1/citations/${encodeURIComponent(doi)}`;
-    try {
-        const response = await rateLimiter.add(() => fetch(apiUrl));
-        if (!response.ok) {
-            console.error(`API error for DOI ${doi}: ${response.status}`);
-            throw new Error('API_ERROR');
-        }
-        const data = await response.json();
-        if (data.length === 0) {
-            console.warn(`No references found for DOI: ${doi}`);
-            const result = { status: 'NO_DATA', data: [] };
-            setCachedData(cacheKey, result);
-            return result;
-        }
-        const result = { status: 'SUCCESS', data };
-        console.log(`Caching references for DOI: ${doi}`);
-        setCachedData(cacheKey, result);
-        return result;
-    } catch (error) {
-        console.error(`Error fetching references for DOI ${doi}:`, error);
-        const result = { status: error.message === 'API_ERROR' ? 'API_ERROR' : 'NETWORK_ERROR', data: [] };
-        // Don't cache network errors
-        if (error.message === 'API_ERROR') {
-            setCachedData(cacheKey, result);
-        }
-        return result;
-    }
-}
-
 async function getTitle(doi) {
-    // Check all cached entries for a matching DOI
-    const allEntries = Object.entries(localStorage)
-        .map(([key, value]) => {
-            try {
-                const parsed = JSON.parse(value);
-                return { key, ...parsed };
-            } catch (e) {
-                return null;
+    // Check if it's an arXiv ID or DataCite DOI
+    const arxivMatch = doi.match(/^(?:arxiv:)?(\d{4}\.\d+)$|^10\.48550\/arXiv\.(\d{4}\.\d+)$/i);
+    if (arxivMatch) {
+        const arxivId = arxivMatch[1] || arxivMatch[2];  // Get the ID from whichever group matched
+        try {
+            const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const title = xmlDoc.querySelector('title')?.textContent?.trim();
+            if (title) {
+                return title;
             }
-        })
-        .filter(entry => entry && entry.data === doi);
-
-    if (allEntries.length > 0) {
-        console.log(`Using cached title for DOI: ${doi}`);
-        return allEntries[0].key;
+            return null;
+        } catch (error) {
+            console.error('Error fetching arXiv title:', error);
+            return null;
+        }
     }
 
-    const encodedDoi = encodeURIComponent(doi);
-    const apiUrl = `https://api.crossref.org/works/${encodedDoi}?${emailParam}`;
-    
+    // Regular DOI handling with CrossRef
     try {
-        const response = await rateLimiter.add(() => fetch(apiUrl));
+        const response = await rateLimiter.add(() => 
+            fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`)
+        );
         const data = await handleCrossrefResponse(response, 'getTitle');
-        const title = data.message.title[0];
-        setCachedData(title, doi);
-        clearError();
-        return title;
+        return data.message.title[0];
     } catch (error) {
         return handleCrossrefError(error, 'getTitle');
     }
@@ -295,6 +356,24 @@ function clearError() {
 
 async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
+    if (commonReferences.length === 0) {
+        let message = '<div class="text-center text-gray-600 mt-4">';
+        // Check if we have any custom messages from getReferences
+        const customMessages = await Promise.all(dois.map(async doi => {
+            const refs = await getReferences(doi);
+            return refs.message;
+        }));
+        
+        if (customMessages.some(msg => msg)) {
+            message += customMessages.filter(msg => msg).join('<br><br>');
+        } else {
+            message += 'No common citations found between these papers.';
+        }
+        message += '</div>';
+        resultsDiv.innerHTML = message;
+        return;
+    }
+
     let html = '';
     
     // Deduplicate references first
@@ -364,8 +443,8 @@ async function displayResults(commonReferences, dois, refCounts) {
     // Display number of valid references above the table
     html += `<p class="text-center mb-3">${validReferencesCount} result${validReferencesCount === 1 ? '' : 's'}</p>`;
     
-    if (validReferencesCount === 0) {
-        html += `<p>No results with available titles.</p>`;
+    if (validReferencesCount === 0 && commonReferences.length > 0) {
+        html += `<p class="text-center">Citations in common found, but no titles available.</p>`;
     } else {
         // Create table with full width
         html += `<div class="w-full max-w-[1400px] mx-auto">
