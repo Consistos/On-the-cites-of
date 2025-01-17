@@ -66,9 +66,13 @@ async function findCommonCitations(initialDois = null) {
 
         const commonReferences = allReferences.reduce((common, ref, index) => {
             if (index === 0) return ref.data;
-            return common.filter(ref1 => 
-                ref.data.some(ref2 => ref1.citing === ref2.citing)
-            );
+            return common.filter(ref1 => {
+                console.log('ref1.citing:', ref1.citing);
+                return ref.data.some(ref2 => {
+                    console.log('ref2.citing:', ref2.citing);
+                    return ref1.citing === ref2.citing;
+                });
+            });
         }, []);
 
         await displayResults(commonReferences, dois, allReferences.map(ref => ref.data.length));
@@ -155,45 +159,56 @@ async function getReferences(doi) {
         doi = `10.48550/arXiv.${arxivMatch[1] || arxivMatch[2]}`;
     }
 
-    // Try multiple OpenCitations API endpoints
-    const endpoints = [
-        'https://opencitations.net/index/coci/api/v1/references/',
-        'https://opencitations.net/index/coci/api/v1/citations/',
-        'https://w3id.org/oc/index/coci/api/v1/references/',
-        'https://w3id.org/oc/index/coci/api/v1/citations/'
-    ];
-
-    for (const baseUrl of endpoints) {
-        try {
-            const response = await fetch(`${baseUrl}${encodeURIComponent(doi)}`);
-            if (!response.ok) {
-                console.error(`OpenCitations API error: ${response.status} for DOI ${doi} at ${baseUrl}`);
-                continue;
-            }
-            const data = await response.json();
-            if (data.length > 0) {
-                return {
-                    status: 'SUCCESS',
-                    data: data
-                };
-            }
-        } catch (error) {
-            console.error(`Error fetching references from ${baseUrl}:`, error);
-            continue;
+    try {
+        const baseUrl = 'https://corsproxy.io/?url=https://opencitations.net/index/coci/api/v1/citations/';
+        const response = await fetch(`${baseUrl}${encodeURIComponent(doi)}`);
+        
+        if (!response.ok) {
+            console.error(`OpenCitations API error: ${response.status} for DOI ${doi}`);
+            return {
+                status: 'API_ERROR',
+                data: [],
+                message: `Failed to fetch data from OpenCitations (Status: ${response.status})`
+            };
         }
-    }
 
-    // If we get here, no data was found in any endpoint
-    if (arxivMatch) {
-        console.log(`No citation data available for arXiv paper: ${arxivMatch[1] || arxivMatch[2]}`);
+        const data = await response.json();
+        console.log(`Fetched citations for DOI: ${doi}, Status: ${response.status}, Count: ${data.length}`);
+        if (data.length > 0) {
+            // Transform the data to use the citing DOI as our reference
+            const transformedData = data.map(citation => ({
+                ...citation,
+                citing: citation.citing.split(' ').find(id => id.startsWith('doi:'))?.substring(4) || citation.citing
+            }));
+            return {
+                status: 'SUCCESS',
+                data: transformedData
+            };
+        }
+
+        // Handle no data case
+        if (arxivMatch) {
+            console.log(`No citation data available for arXiv paper: ${arxivMatch[1] || arxivMatch[2]}`);
+            return {
+                status: 'NO_DATA',
+                data: [],
+                message: `This appears to be an arXiv paper (${arxivMatch[1] || arxivMatch[2]}). While we can confirm it exists, no citation data is currently available in OpenCitations. This is common for newer or preprint papers.`
+            };
+        }
+
         return {
             status: 'NO_DATA',
             data: [],
-            message: `This appears to be an arXiv paper (${arxivMatch[1] || arxivMatch[2]}). While we can confirm it exists, no citation data is currently available in OpenCitations. This is common for newer or preprint papers.`
+            message: 'No citation data found for this DOI in OpenCitations.'
+        };
+    } catch (error) {
+        console.error('Error fetching citations:', error);
+        return {
+            status: 'API_ERROR',
+            data: [],
+            message: 'Failed to connect to OpenCitations API. Please try again later.'
         };
     }
-
-    return { status: 'NO_DATA', data: [] };
 }
 
 async function extractArXivDOI(arxivId) {
@@ -258,6 +273,11 @@ async function addInput() {
     div.appendChild(removeButton);
     
     container.appendChild(div);
+}
+
+function removeInput(button) {
+    const inputGroup = button.closest('.input-group');
+    inputGroup.remove();
 }
 
 function removeInput(button) {
@@ -358,18 +378,8 @@ async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
     if (commonReferences.length === 0) {
         let message = '<div class="text-center text-gray-600 mt-4">';
-        // Check if we have any custom messages from getReferences
-        const customMessages = await Promise.all(dois.map(async doi => {
-            const refs = await getReferences(doi);
-            return refs.message;
-        }));
-        
-        if (customMessages.some(msg => msg)) {
-            message += customMessages.filter(msg => msg).join('<br><br>');
-        } else {
-            message += 'No common citations found between these papers.';
-        }
-        message += '</div>';
+        message += 'No common citations found between these papers.<br>';
+        message += 'Note: OpenCitations might not have citation data for the given DOIs.</div>';
         resultsDiv.innerHTML = message;
         return;
     }
@@ -401,7 +411,7 @@ async function displayResults(commonReferences, dois, refCounts) {
     // Mobile view
     html += `<div class="sm:hidden px-4">`;
     // Results section for mobile
-    html += `<h2 class="text-lg font-medium text-center mt-8 mb-4">${validReferencesCount} result${validReferencesCount === 1 ? '' : 's'}</h2>`;
+    html += `<h2 class="text-lg text-center mt-8 mb-4">${validReferencesCount} result${validReferencesCount === 1 ? '' : 's'}</h2>`;
     if (validReferencesCount === 0) {
         html += `<p>No results with available titles.</p>`;
     } else {
@@ -416,22 +426,24 @@ async function displayResults(commonReferences, dois, refCounts) {
                     </tr>
                     <tr>
                         <td class="px-4 py-2 border-t border-gray-300">
-                            <a href="${scholarUrl}" target="_blank" class="hover:underline block mb-2">Google Scholar</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 border-t border-gray-300">
-                            ${dois.length > 1 ? 
-                                `<div class="text-sm text-gray-600">${dois.length} DOIs: ${dois.join(', ')}</div>` : 
-                                `<div class="text-sm text-gray-600">${dois[0]}</div>`
-                            }
+                            <div class="flex justify-between items-center">
+                                <a href="${scholarUrl}" target="_blank" class="hover:underline">Google Scholar</a>
+                                <div class="flex items-center">
+                                    <span class="mr-2 text-gray-600">DOI</span>
+                                    <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                 </table>
             `;
         }
     }
-
+    
     // Citations count for mobile
     html += `<div class="mt-4 text-sm text-gray-600">`;
     html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
@@ -497,6 +509,19 @@ async function displayResults(commonReferences, dois, refCounts) {
     html += `</div>`; // Close desktop view
     
     resultsDiv.innerHTML = html;
+}
+
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        const messageEl = document.getElementById(`copyMessage-${text}`);
+        messageEl.style.opacity = '1';
+        setTimeout(() => {
+            messageEl.style.opacity = '0';
+        }, 1500);
+    } catch (err) {
+        showError('Failed to copy DOI');
+    }
 }
 
 async function copyToClipboard(text) {
