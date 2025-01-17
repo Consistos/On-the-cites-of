@@ -90,27 +90,64 @@ async function getDOI(input) {
     if (doiMatch) {
         const doi = doiMatch[1];
         const title = await getTitle(doi);
-        if (title) {
-            setCachedData(title, doi);
+        if (title && title !== "Unknown Title") {
+            // Only store the DOI, let getReferences handle citations
+            const existingData = getCachedData(title);
+            setCachedData(title, { ...existingData, doi });
         }
         return doi;
     }
-
+    
     // Handle arXiv URLs or IDs first (since they have a specific format)
-    const arxivMatch = sanitizedInput.match(/(?:arxiv\.org\/(?:abs|pdf)\/)?([0-9]{4}\.[0-9]+)(?:v\d+)?(?:\.pdf)?$/i);
-    if (arxivMatch) {
-        const arxivId = arxivMatch[1];
-        console.log('Extracted arXiv ID:', arxivId);
-        const doi = await extractArXivDOI(arxivId);
-        if (doi) {
-            const title = await getTitle(doi);
+    const arxivUrlMatch = sanitizedInput.match(/arxiv\.org\/(?:abs|pdf)\/(\d{4}\.\d{4,5}(?:v\d+)?)/i);
+    if (arxivUrlMatch) {
+        const arxivId = arxivUrlMatch[1];
+        console.log('Extracted arXiv ID from URL:', arxivId);
+        try {
+            const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
+            const doi = `10.48550/arXiv.${arxivId}`;
+            
             if (title) {
-                setCachedData(title, doi);
+                // Only store the DOI, let getReferences handle citations
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
             }
             return doi;
+        } catch (error) {
+            console.error('Error fetching arXiv data:', error);
+            return `10.48550/arXiv.${arxivId}`;
         }
     }
-
+    
+    // Handle direct arXiv identifiers
+    const arxivIdMatch = sanitizedInput.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
+    if (arxivIdMatch) {
+        const arxivId = arxivIdMatch[1];
+        console.log('Found direct arXiv ID:', arxivId);
+        try {
+            const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
+            const doi = `10.48550/arXiv.${arxivId}`;
+            
+            if (title) {
+                // Only store the DOI, let getReferences handle citations
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
+            }
+            return doi;
+        } catch (error) {
+            console.error('Error fetching arXiv data:', error);
+            return `10.48550/arXiv.${arxivId}`;
+        }
+    }
+    
     // Handle PubMed URLs or IDs (after arXiv to prevent false matches)
     const pubmedMatch = sanitizedInput.match(/(?:pubmed\.ncbi\.nlm\.nih\.gov\/|^PMC)?(\d{6,8})(?:\/)?$/i);
     if (pubmedMatch || sanitizedInput.match(/^PMC\d{6,8}$/i)) {
@@ -119,44 +156,71 @@ async function getDOI(input) {
         const doi = await extractPubMedDOI(pmid);
         if (doi) {
             const title = await getTitle(doi);
-            if (title) {
-                setCachedData(title, doi);
+            if (title && title !== "Unknown Title") {
+                // Only store the DOI, let getReferences handle citations
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
             }
             return doi;
         }
     }
 
     // Check cache for title
-    const cachedDoi = getCachedData(sanitizedInput);
-    if (cachedDoi) {
+    const cachedData = getCachedData(sanitizedInput);
+    if (cachedData && cachedData.doi) {
         console.log(`Using cached DOI for title: ${sanitizedInput}`);
-        return cachedDoi;
+        return cachedData.doi;
     }
 
     // Fall back to CrossRef search
-    const query = encodeURIComponent(sanitizedInput);
-    const apiUrl = `https://api.crossref.org/works?query=${query}&rows=1&select=DOI&${emailParam}`;
-
     try {
-        const response = await rateLimiter.add(() => fetch(apiUrl));
-        const data = await handleCrossrefResponse(response, 'getDOI');
+        const query = encodeURIComponent(sanitizedInput);
+        const url = `https://api.crossref.org/works?query.bibliographic=${query}&rows=1&${emailParam}`;
         
-        if (data.message.items && data.message.items.length > 0) {
+        const data = await rateLimiter.add(() => 
+            fetch(url)
+                .then(response => handleCrossrefResponse(response, 'getDOI'))
+                .catch(error => handleCrossrefError(error, 'getDOI'))
+        );
+
+        if (data.message.items.length > 0) {
             const doi = data.message.items[0].DOI;
-            setCachedData(sanitizedInput, doi);
+            const title = data.message.items[0].title[0];
+            
+            // Cache the DOI, let getReferences handle citations
+            if (title) {
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
+            }
+            
             return doi;
         }
         return null;
     } catch (error) {
-        return handleCrossrefError(error, 'getDOI');
+        console.error('Error in getDOI:', error);
+        return null;
     }
 }
 
 async function getReferences(doi) {
     // Convert arXiv ID to DataCite DOI format if needed
-    const arxivMatch = doi.match(/^(?:arxiv:)?(\d{4}\.\d+)$|^10\.48550\/arXiv\.(\d{4}\.\d+)$/i);
+    const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
     if (arxivMatch) {
-        doi = `10.48550/arXiv.${arxivMatch[1] || arxivMatch[2]}`;
+        doi = `10.48550/arXiv.${arxivMatch[1]}`;
+    }
+
+    // First get the title for this DOI
+    const title = await getTitle(doi);
+    if (title && title !== "Unknown Title") {
+        // Check if we have cached data for this title
+        const cachedData = getCachedData(title);
+        if (cachedData && Array.isArray(cachedData.citations)) {
+            console.log(`Using cached citations for DOI: ${doi}, Count: ${cachedData.citations.length}`);
+            return {
+                status: 'SUCCESS',
+                data: cachedData.citations
+            };
+        }
     }
 
     try {
@@ -180,6 +244,18 @@ async function getReferences(doi) {
                 ...citation,
                 citing: citation.citing.split(' ').find(id => id.startsWith('doi:'))?.substring(4) || citation.citing
             }));
+            
+            // Cache the transformed data if we have a title
+            if (title && title !== "Unknown Title") {
+                // Get existing cache data to preserve the DOI
+                const existingData = getCachedData(title) || {};
+                setCachedData(title, { 
+                    ...existingData,
+                    doi, // Ensure DOI is set
+                    citations: transformedData 
+                });
+            }
+            
             return {
                 status: 'SUCCESS',
                 data: transformedData
@@ -188,14 +264,25 @@ async function getReferences(doi) {
 
         // Handle no data case
         if (arxivMatch) {
-            console.log(`No citation data available for arXiv paper: ${arxivMatch[1] || arxivMatch[2]}`);
+            console.log(`No citation data available for arXiv paper: ${arxivMatch[1]}`);
             return {
                 status: 'NO_DATA',
                 data: [],
-                message: `This appears to be an arXiv paper (${arxivMatch[1] || arxivMatch[2]}). While we can confirm it exists, no citation data is currently available in OpenCitations. This is common for newer or preprint papers.`
+                message: `This appears to be an arXiv paper (${arxivMatch[1]}). While we can confirm it exists, no citation data is currently available in OpenCitations. This is common for newer or preprint papers.`
             };
         }
 
+        // Cache empty results if we have a title
+        if (title && title !== "Unknown Title") {
+            // Get existing cache data to preserve the DOI
+            const existingData = getCachedData(title) || {};
+            setCachedData(title, { 
+                ...existingData,
+                doi, // Ensure DOI is set
+                citations: [] 
+            });
+        }
+        
         return {
             status: 'NO_DATA',
             data: [],
@@ -328,35 +415,74 @@ async function handleCrossrefError(error, functionName) {
 }
 
 async function getTitle(doi) {
+    // Check if we have a cached DOI for this title by looking through cache entries
+    // (we need to do this since we don't know the title yet)
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const item = localStorage.getItem(key);
+        if (item) {
+            try {
+                const { data } = JSON.parse(item);
+                if (typeof data === 'object' && data.doi === doi) {
+                    console.log(`Using cached title for DOI: ${doi}`);
+                    return key;
+                }
+            } catch (error) {
+                console.error('Error parsing cache item:', error);
+            }
+        }
+    }
+
     // Check if it's an arXiv ID or DataCite DOI
-    const arxivMatch = doi.match(/^(?:arxiv:)?(\d{4}\.\d+)$|^10\.48550\/arXiv\.(\d{4}\.\d+)$/i);
+    const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
     if (arxivMatch) {
-        const arxivId = arxivMatch[1] || arxivMatch[2];  // Get the ID from whichever group matched
+        const arxivId = arxivMatch[1];  // Get the ID from whichever group matched
         try {
             const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
             const text = await response.text();
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(text, "text/xml");
-            const title = xmlDoc.querySelector('title')?.textContent?.trim();
+            const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
             if (title) {
+                // Only store the DOI, let getReferences handle citations
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
                 return title;
             }
-            return null;
+            // If we can't get the title, return "Unknown Title"
+            return "Unknown Title";
         } catch (error) {
             console.error('Error fetching arXiv title:', error);
-            return null;
+            // Return "Unknown Title" on error
+            return "Unknown Title";
         }
     }
 
-    // Regular DOI handling with CrossRef
+    // If not arXiv or arXiv fetch failed, try Crossref
     try {
-        const response = await rateLimiter.add(() => 
-            fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`)
-        );
-        const data = await handleCrossrefResponse(response, 'getTitle');
-        return data.message.title[0];
+        // Handle special characters in DOI
+        const encodedDoi = encodeURIComponent(doi.replace(/\s+/g, ''));
+        const url = `https://api.crossref.org/works/${encodedDoi}?${emailParam}`;
+        
+        const response = await rateLimiter.add(() => fetch(url));
+        const data = await response.json();
+        
+        if (response.ok) {
+            const title = data?.message?.title?.[0];
+            if (title) {
+                // Only store the DOI, let getReferences handle citations
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
+                return title;
+            }
+        }
+        
+        // If we can't get the title from Crossref, return "Unknown Title"
+        console.log(`No title found for DOI: ${doi}`);
+        return "Unknown Title";
     } catch (error) {
-        return handleCrossrefError(error, 'getTitle');
+        console.error('Error fetching title:', error);
+        return "Unknown Title"; // Return "Unknown Title" if we can't get the title
     }
 }
 
@@ -463,9 +589,9 @@ async function displayResults(commonReferences, dois, refCounts) {
             <table class="w-full text-sm border-collapse border border-gray-300 mt-8">
                 <thead bg-gray-50>
                     <tr>
-                        <th class="w-[80%] text-gray-500 text-left border border-gray-300 px-4 py-2">Title</th>
-                        <th class="w-[10%] text-gray-500 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
-                        <th class="w-[10%] text-gray-500 text-left border border-gray-300 px-4 py-2">DOI</th>
+                        <th class="w-[80%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
+                        <th class="w-[10%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
+                        <th class="w-[10%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -524,18 +650,6 @@ async function copyToClipboard(text) {
     }
 }
 
-async function copyToClipboard(text) {
-    try {
-        await navigator.clipboard.writeText(text);
-        const messageEl = document.getElementById(`copyMessage-${text}`);
-        messageEl.style.opacity = '1';
-        setTimeout(() => {
-            messageEl.style.opacity = '0';
-        }, 1500);
-    } catch (err) {
-        showError('Failed to copy DOI');
-    }
-}
 
 // Rate limiter for Crossref API
 class RateLimiter {
@@ -591,7 +705,7 @@ async function initializePage() {
             
             // Pre-cache the DOI for this title/DOI combination
             if (title && title !== doi) {
-                setCachedData(title, doi);
+                setCachedData(title, { doi });
             }
             
             currentInputs[index - 1].value = title && title !== doi ? title : doi;
