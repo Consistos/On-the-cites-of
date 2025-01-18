@@ -43,7 +43,7 @@ async function findCommonCitations(initialDois = null) {
         const uniqueDois = [...new Set(dois)];
         const allReferences = await Promise.all(uniqueDois.map(async doi => {
             console.log(`Getting references for DOI: ${doi}`);
-            return getReferences(doi);
+            return getCitingPubs(doi);
         }));
         
         // Check for API errors
@@ -85,7 +85,7 @@ async function getDOI(input) {
         const doi = doiMatch[1];
         const title = await getTitle(doi);
         if (title && title !== "Unknown Title") {
-            // Only store the DOI, let getReferences handle citations
+            // Only store the DOI, let getCitingPubs handle citations
             const existingData = getCachedData(title);
             setCachedData(title, { ...existingData, doi });
         }
@@ -106,7 +106,7 @@ async function getDOI(input) {
             const doi = `10.48550/arXiv.${arxivId}`;
             
             if (title) {
-                // Only store the DOI, let getReferences handle citations
+                // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
             }
@@ -131,7 +131,7 @@ async function getDOI(input) {
             const doi = `10.48550/arXiv.${arxivId}`;
             
             if (title) {
-                // Only store the DOI, let getReferences handle citations
+                // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
             }
@@ -151,7 +151,7 @@ async function getDOI(input) {
         if (doi) {
             const title = await getTitle(doi);
             if (title && title !== "Unknown Title") {
-                // Only store the DOI, let getReferences handle citations
+                // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
             }
@@ -181,7 +181,7 @@ async function getDOI(input) {
             const doi = data.message.items[0].DOI;
             const title = data.message.items[0].title[0];
             
-            // Cache the DOI, let getReferences handle citations
+            // Cache the DOI, let getCitingPubs handle citations
             if (title) {
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
@@ -196,7 +196,7 @@ async function getDOI(input) {
     }
 }
 
-async function getReferences(doi) {
+async function getCitingPubs(doi) {
     // Convert arXiv ID to DataCite DOI format if needed
     const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
     if (arxivMatch) {
@@ -205,16 +205,22 @@ async function getReferences(doi) {
 
     // First get the title for this DOI
     const title = await getTitle(doi);
+    
+    // Check cache using both title and DOI
+    let cachedData = null;
     if (title && title !== "Unknown Title") {
-        // Check if we have cached data for this title
-        const cachedData = getCachedData(title);
-        if (cachedData && Array.isArray(cachedData.citations)) {
-            console.log(`Using cached citations for DOI: ${doi}, Count: ${cachedData.citations.length}`);
-            return {
-                status: 'SUCCESS',
-                data: cachedData.citations
-            };
-        }
+        cachedData = getCachedData(title);
+    }
+    if (!cachedData || !Array.isArray(cachedData['cited-by'])) {
+        cachedData = getCachedData(doi);
+    }
+    
+    if (cachedData && Array.isArray(cachedData['cited-by'])) {
+        console.log(`Using cached citations for DOI: ${doi}, Count: ${cachedData['cited-by'].length}`);
+        return {
+            status: 'SUCCESS',
+            data: cachedData['cited-by']
+        };
     }
 
     try {
@@ -243,10 +249,19 @@ async function getReferences(doi) {
             if (title && title !== "Unknown Title") {
                 // Get existing cache data to preserve the DOI
                 const existingData = getCachedData(title) || {};
-                setCachedData(title, { 
+                const cacheData = { 
                     ...existingData,
                     doi, // Ensure DOI is set
-                    citations: transformedData 
+                    'cited-by': transformedData 
+                };
+                // Cache under both title and DOI
+                setCachedData(title, cacheData);
+                setCachedData(doi, cacheData);
+            } else {
+                // If no title, at least cache under DOI
+                setCachedData(doi, { 
+                    doi,
+                    'cited-by': transformedData 
                 });
             }
             
@@ -275,10 +290,19 @@ async function getReferences(doi) {
                 if (title && title !== "Unknown Title") {
                     // Get existing cache data to preserve the DOI
                     const existingData = getCachedData(title) || {};
-                    setCachedData(title, { 
+                    const cacheData = { 
                         ...existingData,
                         doi: altDoi, // Use the alternative DOI since it worked
-                        citations: transformedData 
+                        'cited-by': transformedData 
+                    };
+                    // Cache under both title and DOI
+                    setCachedData(title, cacheData);
+                    setCachedData(altDoi, cacheData);
+                } else {
+                    // If no title, at least cache under DOI
+                    setCachedData(altDoi, { 
+                        doi: altDoi,
+                        'cited-by': transformedData 
                     });
                 }
                 
@@ -304,7 +328,7 @@ async function getReferences(doi) {
             setCachedData(title, { 
                 ...existingData,
                 doi, // Ensure DOI is set
-                citations: [] 
+                'cited-by': [] 
             });
         }
         
@@ -469,7 +493,7 @@ async function getTitle(doi) {
             const xmlDoc = parser.parseFromString(text, "text/xml");
             const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
             if (title) {
-                // Only store the DOI, let getReferences handle citations
+                // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
                 return title;
@@ -495,7 +519,7 @@ async function getTitle(doi) {
         if (response.ok) {
             const title = data?.message?.title?.[0];
             if (title) {
-                // Only store the DOI, let getReferences handle citations
+                // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
                 return title;
@@ -679,9 +703,9 @@ async function copyToClipboard(text) {
 async function preCacheCitations(dois) {
     await Promise.all(dois.map(async doi => {
         const title = await getTitle(doi);
-        if (title && title !== "Unknown Title" && !getCachedData(title)?.citations) {
+        if (title && title !== "Unknown Title" && !getCachedData(title)?.['cited-by']) {
             console.log(`Pre-caching citations for DOI: ${doi}`);
-            await getReferences(doi);
+            await getCitingPubs(doi);
         }
     }));
 }
@@ -741,6 +765,8 @@ async function initializePage() {
             // Pre-cache the DOI for this title/DOI combination
             if (title && title !== doi) {
                 setCachedData(title, { doi });
+                // Also pre-cache the citing publications
+                await getCitingPubs(doi);
             }
             
             currentInputs[index - 1].value = title && title !== doi ? title : doi;
