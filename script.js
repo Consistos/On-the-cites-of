@@ -262,8 +262,39 @@ async function getReferences(doi) {
             };
         }
 
-        // Handle no data case
-        if (arxivMatch) {
+        // If no citations found and it's an arXiv paper, try alternative format
+        if (isArxiv) {
+            console.log('No citations found, trying alternative arXiv DOI format...');
+            const altDoi = `10.48550/arXiv:${arxivMatch[1]}`; // Try with colon
+            const altResponse = await fetch(`${baseUrl}${encodeURIComponent(altDoi)}`);
+            const altData = await altResponse.json();
+            
+            console.log(`Fetched citations for alternative DOI: ${altDoi}, Status: ${altResponse.status}, Count: ${altData.length}`);
+            if (altData.length > 0) {
+                // Transform the data to use the citing DOI as our reference
+                const transformedData = altData.map(citation => ({
+                    ...citation,
+                    citing: citation.citing.split(' ').find(id => id.startsWith('doi:'))?.substring(4) || citation.citing
+                }));
+                
+                // Cache the transformed data if we have a title
+                if (title && title !== "Unknown Title") {
+                    // Get existing cache data to preserve the DOI
+                    const existingData = getCachedData(title) || {};
+                    setCachedData(title, { 
+                        ...existingData,
+                        doi: altDoi, // Use the alternative DOI since it worked
+                        citations: transformedData 
+                    });
+                }
+                
+                return {
+                    status: 'SUCCESS',
+                    data: transformedData
+                };
+            }
+            
+            // No citations found with either format
             console.log(`No citation data available for arXiv paper: ${arxivMatch[1]}`);
             return {
                 status: 'NO_DATA',
