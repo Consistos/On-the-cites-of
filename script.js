@@ -464,22 +464,12 @@ async function handleCrossrefError(error, functionName) {
 }
 
 async function getTitle(doi) {
-    // Check if we have a cached DOI for this title by looking through cache entries
-    // (we need to do this since we don't know the title yet)
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        const item = localStorage.getItem(key);
-        if (item) {
-            try {
-                const { data } = JSON.parse(item);
-                if (typeof data === 'object' && data.doi === doi) {
-                    console.log(`Using cached title for DOI: ${doi}`);
-                    return key;
-                }
-            } catch (error) {
-                console.error('Error parsing cache item:', error);
-            }
-        }
+    // First check if we have this DOI cached directly
+    const doiCacheKey = `doi:${doi}`;
+    const cachedData = getCachedData(doiCacheKey);
+    if (cachedData && cachedData.title) {
+        console.log(`Using cached title for DOI: ${doi}`);
+        return cachedData.title;
     }
 
     // Check if it's an arXiv ID or DataCite DOI
@@ -493,23 +483,20 @@ async function getTitle(doi) {
             const xmlDoc = parser.parseFromString(text, "text/xml");
             const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
             if (title) {
-                // Only store the DOI, let getCitingPubs handle citations
-                const existingData = getCachedData(title);
-                setCachedData(title, { ...existingData, doi });
+                // Cache both ways - by DOI and by title
+                setCachedData(doiCacheKey, { title });
+                setCachedData(`title:${title}`, { doi });
                 return title;
             }
-            // If we can't get the title, return "Unknown Title"
             return "Unknown Title";
         } catch (error) {
             console.error('Error fetching arXiv title:', error);
-            // Return "Unknown Title" on error
             return "Unknown Title";
         }
     }
 
     // If not arXiv or arXiv fetch failed, try Crossref
     try {
-        // Handle special characters in DOI
         const encodedDoi = encodeURIComponent(doi.replace(/\s+/g, ''));
         const url = `https://api.crossref.org/works/${encodedDoi}?${emailParam}`;
         
@@ -519,34 +506,19 @@ async function getTitle(doi) {
         if (response.ok) {
             const title = data?.message?.title?.[0];
             if (title) {
-                // Only store the DOI, let getCitingPubs handle citations
-                const existingData = getCachedData(title);
-                setCachedData(title, { ...existingData, doi });
+                // Cache both ways - by DOI and by title
+                setCachedData(doiCacheKey, { title });
+                setCachedData(`title:${title}`, { doi });
                 return title;
             }
         }
         
-        // If we can't get the title from Crossref, return "Unknown Title"
         console.log(`No title found for DOI: ${doi}`);
         return "Unknown Title";
     } catch (error) {
         console.error('Error fetching title:', error);
-        return "Unknown Title"; // Return "Unknown Title" if we can't get the title
+        return "Unknown Title";
     }
-}
-
-function showError(message, duration = 5000) {
-    const errorDiv = document.getElementById('errorMessage');
-    errorDiv.textContent = message;
-    errorDiv.classList.remove('hidden');
-    setTimeout(() => {
-        errorDiv.classList.add('hidden');
-    }, duration);
-}
-
-function clearError() {
-    const errorDiv = document.getElementById('errorMessage');
-    errorDiv.classList.add('hidden');
 }
 
 async function displayResults(commonReferences, dois, refCounts) {
@@ -762,14 +734,13 @@ async function initializePage() {
             const currentInputs = document.querySelectorAll('.article-input');
             const title = await getTitle(doi);
             
-            // Pre-cache the DOI for this title/DOI combination
-            if (title && title !== doi) {
-                setCachedData(title, { doi });
-                // Also pre-cache the citing publications
+            // Only fetch citations if we got a valid title
+            if (title && title !== "Unknown Title") {
+                // Pre-cache the citing publications
                 await getCitingPubs(doi);
             }
             
-            currentInputs[index - 1].value = title && title !== doi ? title : doi;
+            currentInputs[index - 1].value = title && title !== "Unknown Title" ? title : doi;
             updateClearButtonVisibility(currentInputs[index - 1]);
             index++;
             doi = getUrlParameter(`doi${index}`);
