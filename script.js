@@ -37,13 +37,7 @@ async function findCommonCitations(initialDois = null) {
         }
 
         // Pre-fetch and cache references for all DOIs
-        await Promise.all(dois.map(async doi => {
-            const cacheKey = `references_${doi}`;
-            if (!getCachedData(cacheKey)) {
-                console.log(`Pre-caching references for DOI: ${doi}`);
-                await getReferences(doi);
-            }
-        }));
+        await preCacheCitations(dois);
 
         // Get references for all DOIs, but only fetch each reference once
         const uniqueDois = [...new Set(dois)];
@@ -681,6 +675,16 @@ async function copyToClipboard(text) {
     }
 }
 
+// Helper function for pre-caching citations
+async function preCacheCitations(dois) {
+    await Promise.all(dois.map(async doi => {
+        const title = await getTitle(doi);
+        if (title && title !== "Unknown Title" && !getCachedData(title)?.citations) {
+            console.log(`Pre-caching citations for DOI: ${doi}`);
+            await getReferences(doi);
+        }
+    }));
+}
 
 // Rate limiter for Crossref API
 class RateLimiter {
@@ -747,13 +751,7 @@ async function initializePage() {
         
         if (dois.length > 1) {
             // Pre-fetch and cache references for all DOIs
-            await Promise.all(dois.map(async doi => {
-                const cacheKey = `references_${doi}`;
-                if (!getCachedData(cacheKey)) {
-                    console.log(`Pre-caching references for DOI: ${doi}`);
-                    await getReferences(doi);
-                }
-            }));
+            await preCacheCitations(dois);
             await findCommonCitations(dois);
         }
     } catch (error) {
