@@ -33,7 +33,9 @@ async function findCommonCitations(initialDois = null) {
             // Update URL with DOIs only if they weren't provided initially
             const encodedDois = dois.map(doi => encodeURIComponent(doi));
             const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index+1}=${doi}`).join('&')}`;
-            history.pushState({}, '', newUrl);
+            // Record when we last updated the URL to avoid reinitializing
+            window.lastUrlUpdate = Date.now();
+            history.replaceState({}, '', newUrl);
         }
 
         // Pre-fetch and cache references for all DOIs
@@ -369,56 +371,67 @@ async function extractPubMedDOI(pmid) {
 
 async function addInput() {
     const container = document.getElementById('inputContainer');
+    
+    // Create the input group container
     const div = document.createElement('div');
     div.className = 'input-group flex gap-2 w-full max-w-[800px] px-4 sm:px-0';
     
+    // Create the input container
     const inputContainer = document.createElement('div');
     inputContainer.className = 'relative flex-grow';
     
+    // Create and setup the textarea
     const input = document.createElement('textarea');
     input.className = 'article-input block w-full px-4 py-2 text-base text-gray-900 border border-gray-300 rounded-lg bg-gray-50 resize-y';
     input.placeholder = 'Title or DOI';
     input.rows = 2;
-    input.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            findCommonCitations();
-        }
-    });
     input.addEventListener('input', function() {
         updateClearButtonVisibility(this);
     });
     
+    // Create and setup the clear button
     const clearButton = document.createElement('button');
     clearButton.className = 'clear-input absolute right-2 top-2 text-gray-400 hover:text-gray-600 hidden';
     clearButton.onclick = function() { clearInput(this); };
     clearButton.innerHTML = '<span class="text-xl">×</span>';
     
+    // Add input and clear button to input container
     inputContainer.appendChild(input);
     inputContainer.appendChild(clearButton);
+    
+    // Add input container to the input group
     div.appendChild(inputContainer);
     
-    // Add remove button
+    // Create and setup the remove button
     const removeButton = document.createElement('button');
-    removeButton.className = 'remove-input h-12 bg-white hover:bg-red-400 text-gray-600 hover:text-white px-4 rounded-lg transition-colors flex-shrink-0 group relative flex items-center justify-center';
+    removeButton.className = 'remove-input h-auto bg-white hover:bg-red-500 text-gray-600 hover:text-white px-4 rounded-lg transition-colors flex-shrink-0 group relative flex items-center justify-center';
     removeButton.onclick = function() { removeInput(this); };
     removeButton.innerHTML = `
         <span class="text-xl">−</span>
         <span class="invisible group-hover:visible absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap z-10">Remove</span>
     `;
+    
+    // Add remove button to input group
     div.appendChild(removeButton);
     
+    // Add the new input group to the container
     container.appendChild(div);
+    
+    // Update remove buttons after adding new input
+    updateRemoveButtons();
 }
 
 function removeInput(button) {
-    const inputGroup = button.closest('.input-group');
-    inputGroup.remove();
-}
-
-function removeInput(button) {
-    const inputGroup = button.closest('.input-group');
-    inputGroup.remove();
+    const inputContainer = document.getElementById('inputContainer');
+    const inputGroups = inputContainer.querySelectorAll('.input-group');
+    
+    // Only remove if there's more than one input group
+    if (inputGroups.length > 1) {
+        const inputGroup = button.closest('.input-group');
+        inputGroup.remove();
+        // Update remove buttons after removing input
+        updateRemoveButtons();
+    }
 }
 
 function clearInput(button) {
@@ -435,6 +448,16 @@ function updateClearButtonVisibility(textarea) {
     } else {
         clearButton.classList.add('hidden');
     }
+}
+
+function updateRemoveButtons() {
+    const inputGroups = document.querySelectorAll('.input-group');
+    inputGroups.forEach((group, index) => {
+        const removeButton = group.querySelector('.remove-input');
+        if (removeButton) {
+            removeButton.style.display = inputGroups.length > 1 ? '' : 'none';
+        }
+    });
 }
 
 // Obfuscated email construction for Crossref API
@@ -714,50 +737,86 @@ const rateLimiter = new RateLimiter(5);
 async function initializePage() {
     try {
         let index = 1;
-        let doi = getUrlParameter(`doi${index}`);
         const dois = [];
+        let doi = getUrlParameter(`doi${index}`);
+        const container = document.getElementById('inputContainer');
         
-        // Remove all existing input fields
-        const inputs = document.querySelectorAll('.input-group');
-        inputs.forEach(input => input.remove());
-        
-        // Always add two input fields at start
-        addInput();
-        addInput();
-        
-        // Process URL parameters
-        while (doi) {
-            dois.push(doi);
-            if (index > 2) {  // Only add new fields after the first two
+        // Only initialize if we haven't already
+        if (!window.isInitialized) {
+            // Get existing inputs
+            let existingInputs = container.querySelectorAll('.input-group');
+            
+            // If no inputs exist, add the initial two inputs
+            if (existingInputs.length === 0) {
                 addInput();
+                addInput();
+                existingInputs = container.querySelectorAll('.input-group');
+            } else {
+                // Ensure all existing inputs have remove buttons
+                existingInputs.forEach(inputGroup => {
+                    ensureRemoveButton(inputGroup);
+                });
             }
-            const currentInputs = document.querySelectorAll('.article-input');
-            const title = await getTitle(doi);
             
-            // Only fetch citations if we got a valid title
-            if (title && title !== "Unknown Title") {
-                // Pre-cache the citing publications
-                await getCitingPubs(doi);
+            // Process URL parameters if they exist
+            while (doi) {
+                dois.push(doi);
+                // Add new input if needed
+                if (index > existingInputs.length) {
+                    addInput();
+                    existingInputs = container.querySelectorAll('.input-group');
+                }
+                
+                // Update the input value
+                const textarea = existingInputs[index - 1].querySelector('.article-input');
+                const title = await getTitle(doi);
+                
+                // Only fetch citations if we got a valid title
+                if (title && title !== "Unknown Title") {
+                    // Pre-cache the citing publications
+                    await getCitingPubs(doi);
+                }
+                
+                textarea.value = title && title !== "Unknown Title" ? title : doi;
+                updateClearButtonVisibility(textarea);
+                index++;
+                doi = getUrlParameter(`doi${index}`);
             }
             
-            currentInputs[index - 1].value = title && title !== "Unknown Title" ? title : doi;
-            updateClearButtonVisibility(currentInputs[index - 1]);
-            index++;
-            doi = getUrlParameter(`doi${index}`);
-        }
-        
-        if (dois.length > 1) {
-            // Pre-fetch and cache references for all DOIs
-            await preCacheCitations(dois);
-            await findCommonCitations(dois);
+            // Update remove buttons after all inputs are set up
+            updateRemoveButtons();
+            
+            if (dois.length > 1) {
+                // Pre-fetch and cache references for all DOIs
+                await preCacheCitations(dois);
+                await findCommonCitations(dois);
+            }
+            
+            window.isInitialized = true;
         }
     } catch (error) {
         console.error('Error during page initialization:', error);
     }
 }
 
+// Function to add remove button to an input group if it doesn't have one
+function ensureRemoveButton(inputGroup) {
+    if (!inputGroup.querySelector('.remove-input')) {
+        const removeButton = document.createElement('button');
+        removeButton.className = 'remove-input h-auto bg-white hover:bg-red-500 text-gray-600 hover:text-white px-4 rounded-lg transition-colors flex-shrink-0 group relative flex items-center justify-center';
+        removeButton.onclick = function() { removeInput(this); };
+        removeButton.innerHTML = `
+            <span class="text-xl">−</span>
+            <span class="invisible group-hover:visible absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap z-10">Remove</span>
+        `;
+        inputGroup.appendChild(removeButton);
+    }
+}
+
 // Run initialization after the DOM content has loaded
 document.addEventListener('DOMContentLoaded', function() {
+    window.isInitialized = false;
+    window.lastUrlUpdate = Date.now();
     initializePage();
     document.querySelectorAll('.article-input').forEach(textarea => {
         textarea.addEventListener('input', function() {
@@ -765,6 +824,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         updateClearButtonVisibility(textarea);
     });
+});
+
+// Handle popstate events (back/forward navigation)
+window.addEventListener('popstate', function() {
+    // Only reinitialize if this wasn't triggered by our own URL update
+    if (Date.now() - window.lastUrlUpdate > 100) {
+        window.isInitialized = false;
+        initializePage();
+    }
 });
 
 // Cache management functions
@@ -791,8 +859,9 @@ function setCachedData(key, data) {
 }
 
 // Event listeners for search via Enter key
-document.addEventListener('keyup', function(event) {
-    if (event.target.classList.contains('article-input') && event.key === 'Enter') {
+document.addEventListener('keypress', function(event) {
+    if (event.target.classList.contains('article-input') && event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
         findCommonCitations();
     }
 });
