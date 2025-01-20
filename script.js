@@ -490,10 +490,58 @@ async function getTitle(doi) {
     // First check if we have this DOI cached directly
     const doiCacheKey = `doi:${doi}`;
     const cachedData = getCachedData(doiCacheKey);
-    if (!cachedData) {
+    if (cachedData && cachedData.title) {
+        console.log(`Using cached title for DOI: ${doi}`);
+        return cachedData.title;
+    }
+
+    // Check if it's an arXiv ID or DataCite DOI
+    const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
+    if (arxivMatch) {
+        const arxivId = arxivMatch[1];  // Get the ID from whichever group matched
+        try {
+            const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
+            if (title) {
+                // Cache both ways - by DOI and by title
+                setCachedData(doiCacheKey, { title });
+                setCachedData(`title:${title}`, { doi });
+                return title;
+            }
+            return "Unknown Title";
+        } catch (error) {
+            console.error('Error fetching arXiv title:', error);
+            return "Unknown Title";
+        }
+    }
+
+    // If not arXiv or arXiv fetch failed, try Crossref
+    try {
+        const encodedDoi = encodeURIComponent(doi.replace(/\s+/g, ''));
+        const url = `https://api.crossref.org/works/${encodedDoi}?${emailParam}`;
+        
+        const response = await rateLimiter.add(() => fetch(url));
+        const data = await response.json();
+        
+        if (response.ok) {
+            const title = data?.message?.title?.[0];
+            if (title) {
+                // Cache both ways - by DOI and by title
+                setCachedData(doiCacheKey, { title });
+                setCachedData(`title:${title}`, { doi });
+                return title;
+            }
+        }
+        
+        console.log(`No title found for DOI: ${doi}`);
+        return "Unknown Title";
+    } catch (error) {
+        console.error('Error fetching title:', error);
         return "Unknown Title";
     }
-    return cachedData.title || "Unknown Title";
 }
 
 async function displayResults(commonReferences, dois, refCounts) {
@@ -513,7 +561,8 @@ async function displayResults(commonReferences, dois, refCounts) {
     // Store references in a global variable for lazy loading
     window.allReferences = uniqueReferences;
     window.currentPage = 1;
-    const itemsPerPage = 30;
+    const itemsPerPage = 20;
+
     
     // Function to render a batch of references
     async function renderReferences(start, end) {
@@ -634,8 +683,8 @@ async function displayResults(commonReferences, dois, refCounts) {
         if (totalReferences > itemsPerPage) {
             html += `
                 <div class="text-center mt-4 mb-8">
-                    <button id="load-more" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                        Load More Results
+                    <button id="load-more" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
+                        Load More
                     </button>
                 </div>`;
         }
@@ -800,16 +849,16 @@ async function initializePage() {
             // Update remove buttons after all inputs are set up
             updateRemoveButtons();
             
-            if (dois.length > 1) {
-                // Pre-fetch and cache references for all DOIs
-                await preCacheCitations(dois);
-                await findCommonCitations(dois);
-            }
-            
             window.isInitialized = true;
+
+            // If we loaded DOIs from the URL, trigger the search
+            if (dois.length > 0) {
+                findCommonCitations(dois);
+            }
         }
     } catch (error) {
-        console.error('Error during page initialization:', error);
+        console.error('Error in initializePage:', error);
+        showError('Failed to initialize page');
     }
 }
 
