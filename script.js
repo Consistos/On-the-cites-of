@@ -23,7 +23,7 @@ async function findCommonCitations(initialDois = null) {
                 }
             }
             
-            dois = await Promise.all(nonEmptyInputs.map(input => getDOI(input.value)));
+            dois = await Promise.all(nonEmptyInputs.map(input => getDOI(input)));
             
             if (dois.some(doi => !doi)) {
                 resultsDiv.innerHTML = '<div class="text-center text-gray-600">Could not find DOI for one or more articles</div>';
@@ -79,7 +79,7 @@ async function findCommonCitations(initialDois = null) {
 }
 
 async function getDOI(input) {
-    const sanitizedInput = input.trim();
+    const sanitizedInput = input.value.trim();
     
     // Handle DOI URLs or direct DOIs
     const doiMatch = sanitizedInput.match(/(?:doi\.org\/|dx\.doi\.org\/|doi:)?(\d+\.\d+\/[^\/\s]+)/i);
@@ -90,12 +90,13 @@ async function getDOI(input) {
             // Only store the DOI, let getCitingPubs handle citations
             const existingData = getCachedData(title);
             setCachedData(title, { ...existingData, doi });
+            await updateInputWithTitle(input, title);
         }
         return doi;
     }
     
     // Handle arXiv URLs or IDs first (since they have a specific format)
-    const arxivUrlMatch = sanitizedInput.match(/arxiv\.org\/(?:abs|pdf)\/(\d{4}\.\d{4,5}(?:v\d+)?)/i);
+    const arxivUrlMatch = sanitizedInput.match(/arxiv\.org\/(?:abs|pdf|html)\/(\d{4}\.\d{4,5}(?:v\d+)?)/i);
     if (arxivUrlMatch) {
         const arxivId = arxivUrlMatch[1];
         console.log('Extracted arXiv ID from URL:', arxivId);
@@ -111,6 +112,7 @@ async function getDOI(input) {
                 // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
+                await updateInputWithTitle(input, title);
             }
             return doi;
         } catch (error) {
@@ -136,6 +138,7 @@ async function getDOI(input) {
                 // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
+                await updateInputWithTitle(input, title);
             }
             return doi;
         } catch (error) {
@@ -153,9 +156,9 @@ async function getDOI(input) {
         if (doi) {
             const title = await getTitle(doi);
             if (title && title !== "Unknown Title") {
-                // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
+                await updateInputWithTitle(input, title);
             }
             return doi;
         }
@@ -187,6 +190,7 @@ async function getDOI(input) {
             if (title) {
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
+                await updateInputWithTitle(input, title);
             }
             
             return doi;
@@ -200,7 +204,8 @@ async function getDOI(input) {
 
 async function getCitingPubs(doi) {
     // Convert arXiv ID to DataCite DOI format if needed
-    const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
+    const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.?)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
+    const isArxiv = !!arxivMatch;
     if (arxivMatch) {
         doi = `10.48550/arXiv.${arxivMatch[1]}`;
     }
@@ -273,71 +278,14 @@ async function getCitingPubs(doi) {
             };
         }
 
-        // If no citations found and it's an arXiv paper, try alternative format
-        if (isArxiv) {
-            console.log('No citations found, trying alternative arXiv DOI format...');
-            const altDoi = `10.48550/arXiv:${arxivMatch[1]}`; // Try with colon
-            const altResponse = await fetch(`${baseUrl}${encodeURIComponent(altDoi)}`);
-            const altData = await altResponse.json();
-            
-            console.log(`Fetched citations for alternative DOI: ${altDoi}, Status: ${altResponse.status}, Count: ${altData.length}`);
-            if (altData.length > 0) {
-                // Transform the data to use the citing DOI as our reference
-                const transformedData = altData.map(citation => ({
-                    ...citation,
-                    citing: citation.citing.split(' ').find(id => id.startsWith('doi:'))?.substring(4) || citation.citing
-                }));
-                
-                // Cache the transformed data if we have a title
-                if (title && title !== "Unknown Title") {
-                    // Get existing cache data to preserve the DOI
-                    const existingData = getCachedData(title) || {};
-                    const cacheData = { 
-                        ...existingData,
-                        doi: altDoi, // Use the alternative DOI since it worked
-                        'cited-by': transformedData 
-                    };
-                    // Cache under both title and DOI
-                    setCachedData(title, cacheData);
-                    setCachedData(altDoi, cacheData);
-                } else {
-                    // If no title, at least cache under DOI
-                    setCachedData(altDoi, { 
-                        doi: altDoi,
-                        'cited-by': transformedData 
-                    });
-                }
-                
-                return {
-                    status: 'SUCCESS',
-                    data: transformedData
-                };
-            }
-            
-            // No citations found with either format
-            console.log(`No citation data available for arXiv paper: ${arxivMatch[1]}`);
-            return {
-                status: 'NO_DATA',
-                data: [],
-                message: `This appears to be an arXiv paper (${arxivMatch[1]}). While we can confirm it exists, no citation data is currently available in OpenCitations. This is common for newer or preprint papers.`
-            };
-        }
-
-        // Cache empty results if we have a title
-        if (title && title !== "Unknown Title") {
-            // Get existing cache data to preserve the DOI
-            const existingData = getCachedData(title) || {};
-            setCachedData(title, { 
-                ...existingData,
-                doi, // Ensure DOI is set
-                'cited-by': [] 
-            });
-        }
+        // No citations found with any format
+        console.log(`No citation data available for arXiv paper: ${arxivMatch[1]}`);
         
         return {
             status: 'NO_DATA',
             data: [],
-            message: 'No citation data found for this DOI in OpenCitations.'
+            message: `OpenCitations has no data for this arXiv paper (${arxivMatch[1]}), likely because it has not been published in a peer-reviewed venue. Try searching on <a href=https://scholar.google.com>Google Scholar</a> instead.`
+
         };
     } catch (error) {
         console.error('Error fetching citations:', error);
@@ -491,7 +439,6 @@ async function getTitle(doi) {
     const doiCacheKey = `doi:${doi}`;
     const cachedData = getCachedData(doiCacheKey);
     if (cachedData && cachedData.title) {
-        console.log(`Using cached title for DOI: ${doi}`);
         return cachedData.title;
     }
 
@@ -754,6 +701,14 @@ async function copyToClipboard(text) {
         }, 1500);
     } catch (err) {
         showError('Failed to copy DOI');
+    }
+}
+
+// Helper function to update input field with title
+async function updateInputWithTitle(input, title) {
+    if (title && title !== "Unknown Title") {
+        input.value = title;
+        updateClearButtonVisibility(input);
     }
 }
 
