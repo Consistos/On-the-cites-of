@@ -148,10 +148,10 @@ async function getDOI(input) {
     }
     
     // Handle PubMed URLs or IDs (after arXiv to prevent false matches)
-    const pubmedMatch = sanitizedInput.match(/(?:pubmed\.ncbi\.nlm\.nih\.gov\/|^PMC)?(\d{6,8})(?:\/)?$/i);
-    if (pubmedMatch || sanitizedInput.match(/^PMC\d{6,8}$/i)) {
-        const pmid = pubmedMatch ? pubmedMatch[1] : sanitizedInput.replace(/^PMC/i, '');
-        console.log('Extracted PubMed ID:', pmid);
+    const pubmedMatch = sanitizedInput.match(/(?:pubmed\.ncbi\.nlm\.nih\.gov\/|^)?(?:PMC)?(\d{6,8})(?:\/)?$/i);
+    if (pubmedMatch) {
+        const pmid = sanitizedInput.toUpperCase().includes('PMC') ? `PMC${pubmedMatch[1]}` : pubmedMatch[1];
+        console.log('Extracted PubMed/PMC ID:', pmid);
         const doi = await extractPubMedDOI(pmid);
         if (doi) {
             const title = await getTitle(doi);
