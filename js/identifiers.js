@@ -15,6 +15,7 @@ async function getDOI(input) {
         const doi = doiMatch[1];
         const title = await getTitle(doi);
         if (title && title !== "Unknown Title") {
+            // Only store the DOI, let getCitingPubs handle citations
             const existingData = getCachedData(title);
             setCachedData(title, { ...existingData, doi });
             await updateInputWithTitle(input, title);
@@ -22,23 +23,73 @@ async function getDOI(input) {
         return doi;
     }
     
-    // Handle arXiv URLs or IDs
+    // Handle arXiv URLs or IDs first (since they have a specific format)
     const arxivUrlMatch = sanitizedInput.match(/arxiv\.org\/(?:abs|pdf|html)\/(\d{4}\.\d{4,5}(?:v\d+)?)/i);
     if (arxivUrlMatch) {
-        return await extractArXivDOI(arxivUrlMatch[1]);
+        const arxivId = arxivUrlMatch[1];
+        console.log('Extracted arXiv ID from URL:', arxivId);
+        try {
+            const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
+            const doi = `10.48550/arXiv.${arxivId}`;
+            
+            if (title) {
+                // Only store the DOI, let getCitingPubs handle citations
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
+                await updateInputWithTitle(input, title);
+            }
+            return doi;
+        } catch (error) {
+            console.error('Error fetching arXiv data:', error);
+            return `10.48550/arXiv.${arxivId}`;
+        }
     }
     
     // Handle direct arXiv identifiers
     const arxivIdMatch = sanitizedInput.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
     if (arxivIdMatch) {
-        return await extractArXivDOI(arxivIdMatch[1]);
+        const arxivId = arxivIdMatch[1];
+        console.log('Found direct arXiv ID:', arxivId);
+        try {
+            const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
+            const doi = `10.48550/arXiv.${arxivId}`;
+            
+            if (title) {
+                // Only store the DOI, let getCitingPubs handle citations
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
+                await updateInputWithTitle(input, title);
+            }
+            return doi;
+        } catch (error) {
+            console.error('Error fetching arXiv data:', error);
+            return `10.48550/arXiv.${arxivId}`;
+        }
     }
     
-    // Handle PubMed URLs or IDs
+    // Handle PubMed URLs or IDs (after arXiv to prevent false matches)
     const pubmedMatch = sanitizedInput.match(/(?:pubmed\.ncbi\.nlm\.nih\.gov\/|^)?(?:PMC)?(\d{6,8})(?:\/)?$/i);
     if (pubmedMatch) {
         const pmid = sanitizedInput.toUpperCase().includes('PMC') ? `PMC${pubmedMatch[1]}` : pubmedMatch[1];
-        return await extractPubMedDOI(pmid);
+        console.log('Extracted PubMed/PMC ID:', pmid);
+        const doi = await extractPubMedDOI(pmid);
+        if (doi) {
+            const title = await getTitle(doi);
+            if (title && title !== "Unknown Title") {
+                const existingData = getCachedData(title);
+                setCachedData(title, { ...existingData, doi });
+                await updateInputWithTitle(input, title);
+            }
+            return doi;
+        }
     }
 
     // Check cache for title
@@ -63,6 +114,7 @@ async function getDOI(input) {
             const doi = data.message.items[0].DOI;
             const title = data.message.items[0].title[0];
             
+            // Cache the DOI, let getCitingPubs handle citations
             if (title) {
                 const existingData = getCachedData(title);
                 setCachedData(title, { ...existingData, doi });
@@ -78,15 +130,12 @@ async function getDOI(input) {
     }
 }
 
-async function extractArXivDOI(arxivId) {
-    return `10.48550/arXiv.${arxivId}`;
-}
-
 async function extractPubMedDOI(pmid) {
+    const apiUrl = `https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?ids=${pmid}&format=json&versions=no&tool=citesof&email=${getEmail()}`;
     try {
-        const response = await fetch(`https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?ids=${pmid}&format=json`);
+        const response = await fetch(apiUrl);
         const data = await response.json();
-        if (data.records && data.records[0] && data.records[0].doi) {
+        if (data.records && data.records.length > 0 && data.records[0].doi) {
             return data.records[0].doi;
         }
         return null;
@@ -96,4 +145,10 @@ async function extractPubMedDOI(pmid) {
     }
 }
 
+async function extractArXivDOI(arxivId) {
+    // Return the DataCite DOI format for arXiv papers
+    return `10.48550/arXiv.${arxivId}`;
+
+
+}
 export { getDOI, extractArXivDOI, extractPubMedDOI };

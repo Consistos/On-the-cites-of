@@ -49,6 +49,7 @@ async function findCommonCitations(initialDois = null) {
             // Update URL with DOIs only if they weren't provided initially
             const encodedDois = dois.map(doi => encodeURIComponent(doi));
             const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index+1}=${doi}`).join('&')}`;
+            // Record when we last updated the URL to avoid reinitializing
             window.lastUrlUpdate = Date.now();
             history.replaceState({}, '', newUrl);
         }
@@ -78,7 +79,11 @@ async function findCommonCitations(initialDois = null) {
         const commonReferences = allReferences.reduce((common, ref, index) => {
             if (index === 0) return ref.data;
             return common.filter(ref1 => {
-                return ref.data.some(ref2 => ref1.citing === ref2.citing);
+                console.log('ref1.citing:', ref1.citing);
+                return ref.data.some(ref2 => {
+                    console.log('ref2.citing:', ref2.citing);
+                    return ref1.citing === ref2.citing;
+                });
             });
         }, []);
 
@@ -89,7 +94,7 @@ async function findCommonCitations(initialDois = null) {
     }
 }
 
-// Get URL parameters
+// get URL parameters
 function getUrlParameter(name) {
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
@@ -97,66 +102,76 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
-function initializePage() {
-    // Add event listeners to existing textareas
-    const textareas = document.getElementsByClassName('article-input');
-    Array.from(textareas).forEach(textarea => {
-        textarea.addEventListener('input', () => updateClearButtonVisibility(textarea));
-    });
-
-    // Add event listeners to existing clear buttons
-    const clearButtons = document.getElementsByClassName('clear-input');
-    Array.from(clearButtons).forEach(button => {
-        button.onclick = () => clearInput(button);
-    });
-
-    // Ensure remove buttons exist and are properly set up
-    const inputGroups = document.getElementsByClassName('input-group');
-    Array.from(inputGroups).forEach(group => ensureRemoveButton(group));
-
-    // Update remove buttons visibility
-    updateRemoveButtons();
-
-    // Check URL parameters for DOIs
-    if (!window.isInitialized) {
-        window.isInitialized = true;
+async function initialisePage() {
+    try {
+        let index = 1;
         const dois = [];
-        let i = 1;
-        let doi;
-        while ((doi = getUrlParameter(`doi${i}`))) {
-            dois.push(doi);
-            i++;
-        }
-
-        if (dois.length > 0) {
-            // Add input fields if needed
-            while (textareas.length < dois.length) {
+        let doi = getUrlParameter(`doi${index}`);
+        const container = document.getElementById('inputContainer');
+        
+        // Only initialize if we haven't already
+        if (!window.isInitialized) {
+            // Get existing inputs
+            let existingInputs = container.querySelectorAll('.input-group');
+            
+            // If no inputs exist, add the initial two inputs
+            if (existingInputs.length === 0) {
                 addInput();
+                addInput();
+                existingInputs = container.querySelectorAll('.input-group');
+            } else {
+                // Ensure all existing inputs have remove buttons
+                existingInputs.forEach(inputGroup => {
+                    ensureRemoveButton(inputGroup);
+                });
             }
-
-            // Set DOIs in input fields and get titles
-            Promise.all(dois.map(async (doi, index) => {
+            
+            // Process URL parameters if they exist
+            while (doi) {
+                dois.push(doi);
+                // Add new input if needed
+                if (index > existingInputs.length) {
+                    addInput();
+                    existingInputs = container.querySelectorAll('.input-group');
+                }
+                
+                // Update the input value
+                const textarea = existingInputs[index - 1].querySelector('.article-input');
                 const title = await getTitle(doi);
+                
+                // Only fetch citations if we got a valid title
                 if (title && title !== "Unknown Title") {
-                    await updateInputWithTitle(textareas[index], title);
-                } else {
-                    textareas[index].value = doi;
+                    // Pre-cache the citing publications
+                    await getCitingPubs(doi);
                 }
-                updateClearButtonVisibility(textareas[index]);
-            })).then(() => {
-                if (Date.now() - window.lastUrlUpdate > 1000) {
-                    findCommonCitations(dois);
-                }
-            });
+                
+                textarea.value = title && title !== "Unknown Title" ? title : doi;
+                updateClearButtonVisibility(textarea);
+                index++;
+                doi = getUrlParameter(`doi${index}`);
+            }
+            
+            // Update remove buttons after all inputs are set up
+            updateRemoveButtons();
+            
+            window.isInitialized = true;
+
+            // If we loaded DOIs from the URL, trigger the search
+            if (dois.length > 0) {
+                findCommonCitations(dois);
+            }
         }
+    } catch (error) {
+        console.error('Error in initialisePage:', error);
+        showError('Failed to initialize page');
     }
 }
 
-// Initialize when DOM is loaded
+// Run initialization after the DOM content has loaded
 document.addEventListener('DOMContentLoaded', function() {
     window.isInitialized = false;
     window.lastUrlUpdate = Date.now();
-    initializePage();
+    initialisePage();
     document.querySelectorAll('.article-input').forEach(textarea => {
         textarea.addEventListener('input', function() {
             updateClearButtonVisibility(this);
@@ -167,10 +182,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Handle popstate events (back/forward navigation)
 window.addEventListener('popstate', function() {
-    // Only reinitialize if this wasn't triggered by our own URL update
+    // Only reinitialise if this wasn't triggered by our own URL update
     if (Date.now() - window.lastUrlUpdate > 100) {
         window.isInitialized = false;
-        initializePage();
+        initialisePage();
     }
 });
 

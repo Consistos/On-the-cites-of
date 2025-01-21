@@ -752,7 +752,7 @@ class RateLimiter {
 const rateLimiter = new RateLimiter(5);
 
 // Function to initialize the page
-async function initializePage() {
+async function initialisePage() {
     try {
         let index = 1;
         const dois = [];
@@ -812,7 +812,7 @@ async function initializePage() {
             }
         }
     } catch (error) {
-        console.error('Error in initializePage:', error);
+        console.error('Error in initialisePage:', error);
         showError('Failed to initialize page');
     }
 }
@@ -835,7 +835,7 @@ function ensureRemoveButton(inputGroup) {
 document.addEventListener('DOMContentLoaded', function() {
     window.isInitialized = false;
     window.lastUrlUpdate = Date.now();
-    initializePage();
+    initialisePage();
     document.querySelectorAll('.article-input').forEach(textarea => {
         textarea.addEventListener('input', function() {
             updateClearButtonVisibility(this);
@@ -846,10 +846,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Handle popstate events (back/forward navigation)
 window.addEventListener('popstate', function() {
-    // Only reinitialize if this wasn't triggered by our own URL update
+    // Only reinitialise if this wasn't triggered by our own URL update
     if (Date.now() - window.lastUrlUpdate > 100) {
         window.isInitialized = false;
-        initializePage();
+        initialisePage();
     }
 });
 
