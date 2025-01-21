@@ -4,6 +4,35 @@ import { showError } from './ui.js';
 const emailParts = ['dbag', 'ory', '@', 'icl', 'oud.com'];
 const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // A week in milliseconds
 
+// Rate limiter for Crossref API
+class RateLimiter {
+    constructor(maxConcurrent = 5) {
+        this.maxConcurrent = maxConcurrent;
+        this.currentRequests = 0;
+        this.queue = [];
+    }
+
+    async add(fn) {
+        if (this.currentRequests >= this.maxConcurrent) {
+            await new Promise(resolve => this.queue.push(resolve));
+        }
+        
+        this.currentRequests++;
+        try {
+            return await fn();
+        } finally {
+            this.currentRequests--;
+            if (this.queue.length > 0) {
+                const next = this.queue.shift();
+                next();
+            }
+        }
+    }
+}
+
+// Rate limiter instance
+const rateLimiter = new RateLimiter(5);
+
 function getCachedData(key) {
     const cached = localStorage.getItem(key);
     if (!cached) return null;
@@ -23,6 +52,7 @@ function setCachedData(key, data) {
     };
     localStorage.setItem(key, JSON.stringify(cacheEntry));
 }
+
 const getEmail = () => emailParts.join('');
 const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
 
@@ -109,7 +139,6 @@ async function getCitingPubs(doi) {
             status: 'NO_DATA',
             data: [],
             message: `OpenCitations has no data for this arXiv paper (${arxivMatch[1]}), likely because it has not been published in a peer-reviewed venue. Try searching on <a href=https://scholar.google.com>Google Scholar</a> instead.`
-
         };
     } catch (error) {
         console.error('Error fetching citations:', error);
@@ -198,34 +227,6 @@ async function handleCrossrefError(error, functionName) {
     }
     throw error;
 }
-
-// Rate limiter for Crossref API
-class RateLimiter {
-    constructor(maxConcurrent = 5) {
-        this.maxConcurrent = maxConcurrent;
-        this.currentRequests = 0;
-        this.queue = [];
-    }
-
-    async add(fn) {
-        if (this.currentRequests >= this.maxConcurrent) {
-            await new Promise(resolve => this.queue.push(resolve));
-        }
-        
-        this.currentRequests++;
-        try {
-            return await fn();
-        } finally {
-            this.currentRequests--;
-            if (this.queue.length > 0) {
-                const next = this.queue.shift();
-                next();
-            }
-        }
-    }
-}
-
-const rateLimiter = new RateLimiter(5);
 
 // Helper function for pre-caching citations
 async function preCacheCitations(dois) {
