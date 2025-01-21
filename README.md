@@ -1,7 +1,7 @@
 # On the cites of
 
 Search for publications that cite multiple papers.
-
+[Example search](https://www.onthecitesof.info/index.html?doi1=10.1017/s0140525x99002034&doi2=10.1016/s0166-4328(96)89080-2)
 ![image info](./assets/Example%20screenshot.png)
 
 ## Running the site
