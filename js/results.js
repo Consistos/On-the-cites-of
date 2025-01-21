@@ -196,9 +196,9 @@ async function displayResults(commonReferences, dois, refCounts) {
             <table class="w-full text-sm border-collapse border border-gray-300 mt-8" id="results-table">
                 <thead bg-gray-50>
                     <tr>
-                        <th class="w-[80%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
-                        <th class="w-[10%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
-                        <th class="w-[10%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
+                        <th class="w-[85%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
+                        <th class="w-[7.5%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
+                        <th class="w-[7.5%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
                     </tr>
                 </thead>
                 <tbody id="results-tbody">`;
