@@ -38,9 +38,19 @@ async function findCommonCitations(initialDois = null) {
         window.lastUrlUpdate = Date.now();
         history.pushState({}, '', newUrl);
 
-        // Show loading state
+        // Get citing publications for each DOI while keeping existing content
         const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = '<div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div><div class="mt-2">Loading citations...</div></div>';
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'absolute top-0 left-0 w-full h-full flex items-center justify-center bg-white bg-opacity-80 z-10';
+        loadingDiv.innerHTML = '<div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div><div class="mt-2">Loading citations...</div></div>';
+        
+        // Only add loading overlay if results exist
+        if (resultsDiv.children.length > 0) {
+            resultsDiv.style.position = 'relative';
+            resultsDiv.appendChild(loadingDiv);
+        } else {
+            resultsDiv.innerHTML = loadingDiv.innerHTML;
+        }
 
         // Get citing publications for each DOI
         const citingPublications = await Promise.all(dois.map(doi => getCitingPubs(doi)));
@@ -80,6 +90,12 @@ async function findCommonCitations(initialDois = null) {
 
 async function displayResults(commonReferences, dois, refCounts) {
     const resultsDiv = document.getElementById('results');
+    // Remove loading overlay if it exists
+    const loadingOverlay = resultsDiv.querySelector('.bg-white.bg-opacity-80');
+    if (loadingOverlay) {
+        loadingOverlay.remove();
+        resultsDiv.style.position = '';
+    }
     if (commonReferences.length === 0) {
         let message = '<div class="text-center text-gray-600 mt-4">';
         message += 'No common citations found between these papers.<br>';
