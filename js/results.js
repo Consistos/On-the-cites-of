@@ -1,8 +1,6 @@
-import { getTitle } from './api.js';
+import { getTitle, getCitingPubs, preCacheCitations } from './api.js';
 import { getDOI } from './identifiers.js';
-import { getCitingPubs } from './api.js';
 import { showError } from './ui.js';
-import { preCacheCitations } from './cache.js';
 
 async function findCommonCitations(initialDois = null) {
     try {

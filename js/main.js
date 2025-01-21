@@ -1,5 +1,13 @@
-import { getTitle, getCitingPubs, rateLimiter, handleCrossrefResponse, handleCrossrefError } from './api.js';
-import { getCachedData, setCachedData, preCacheCitations } from './cache.js';
+import {
+    getTitle,
+    getCitingPubs,
+    rateLimiter,
+    handleCrossrefResponse,
+    handleCrossrefError,
+    getCachedData,
+    setCachedData,
+    preCacheCitations
+} from './api.js';
 import { getDOI, extractArXivDOI, extractPubMedDOI } from './identifiers.js';
 import { 
     addInput, 
@@ -167,41 +175,14 @@ async function initialisePage() {
     }
 }
 
-// Run initialization after the DOM content has loaded
-document.addEventListener('DOMContentLoaded', function() {
-    window.isInitialized = false;
-    window.lastUrlUpdate = Date.now();
-    initialisePage();
-    document.querySelectorAll('.article-input').forEach(textarea => {
-        textarea.addEventListener('input', function() {
-            updateClearButtonVisibility(this);
-        });
-        updateClearButtonVisibility(textarea);
-    });
-});
-
-// Handle popstate events (back/forward navigation)
-window.addEventListener('popstate', function() {
-    // Only reinitialise if this wasn't triggered by our own URL update
-    if (Date.now() - window.lastUrlUpdate > 100) {
-        window.isInitialized = false;
-        initialisePage();
-    }
-});
-
-// Event listeners for search via Enter key
-document.addEventListener('keypress', function(event) {
-    if (event.target.classList.contains('article-input') && event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        findCommonCitations();
-    }
-});
-
-// Export functions that need to be accessible globally
-window.addInput = addInput;
-window.removeInput = removeInput;
-window.clearInput = clearInput;
-window.copyToClipboard = copyToClipboard;
-window.findCommonCitations = findCommonCitations;
-window.updateClearButtonVisibility = updateClearButtonVisibility;
-window.ensureRemoveButton = ensureRemoveButton;
+// Export functions and initialization
+export {
+    addInput,
+    removeInput,
+    clearInput,
+    copyToClipboard,
+    findCommonCitations,
+    updateClearButtonVisibility,
+    ensureRemoveButton,
+    initialisePage
+};
