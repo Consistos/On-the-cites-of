@@ -95,8 +95,8 @@ async function getCitingPubs(doi) {
     }
 
     try {
-        const baseUrl = 'https://corsproxy.io/?url=https://opencitations.net/index/coci/api/v1/citations/';
-        const response = await fetch(`${baseUrl}${encodeURIComponent(doi)}`);
+        const baseUrl = 'https://opencitations.net/index/coci/api/v1/citations/';
+        const response = await rateLimiter.add(() => fetch(`${baseUrl}${encodeURIComponent(doi)}`));
         
         if (!response.ok) {
             console.error(`OpenCitations API error: ${response.status} for DOI ${doi}`);
