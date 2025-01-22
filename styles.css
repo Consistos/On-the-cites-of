@@ -1,0 +1,25 @@
+@media screen and (max-width: 600px) {
+    .responsive-input-group {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        width: 100%;
+    }
+
+    .responsive-input-group input {
+        flex-grow: 1;
+        margin-right: 5px;
+        width: calc(100% - 30px); /* Adjust based on button width */
+    }
+
+    .responsive-input-group button {
+        flex-shrink: 0;
+        width: 25px; /* Fixed width for the button */
+        height: 25px; /* Fixed height for the button */
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 18px;
+    }
+}
