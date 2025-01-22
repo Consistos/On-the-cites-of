@@ -145,14 +145,22 @@ async function initialisePage() {
                 
                 // Update the input value
                 const textarea = existingInputs[index - 1].querySelector('.article-input');
-                const title = await getTitle(doi);
                 
-                // Only fetch citations if we got a valid title
-                if (title && title !== "Unknown Title") {
+                // Fetch cached data once
+                const cachedData = getCachedData(doi);
+                let title;
+                if (!cachedData) {
+                    title = await getTitle(doi);
+                } else {
+                    title = cachedData.title;
+                }
+
+                // Only fetch citations if we got a valid title and it's not already cached
+                if (title && title !== "Unknown Title" && !cachedData?.['cited-by']) {
                     // Pre-cache the citing publications
                     await getCitingPubs(doi);
                 }
-                
+
                 textarea.value = title && title !== "Unknown Title" ? title : doi;
                 updateClearButtonVisibility(textarea);
                 index++;

@@ -33,24 +33,24 @@ class RateLimiter {
 // Rate limiter instance
 const rateLimiter = new RateLimiter(5);
 
-function getCachedData(key) {
-    const cached = localStorage.getItem(key);
+function getCachedData(doi) {
+    const cached = localStorage.getItem(doi);
     if (!cached) return null;
     
     const { data, timestamp } = JSON.parse(cached);
     if (Date.now() - timestamp > CACHE_EXPIRY) {
-        localStorage.removeItem(key);
+        localStorage.removeItem(doi);
         return null;
     }
     return data;
 }
 
-function setCachedData(key, data) {
+function setCachedData(doi, data) {
     const cacheEntry = {
         data,
         timestamp: Date.now()
     };
-    localStorage.setItem(key, JSON.stringify(cacheEntry));
+    localStorage.setItem(doi, JSON.stringify(cacheEntry));
 }
 
 const getEmail = () => emailParts.join('');
@@ -70,7 +70,7 @@ async function getCitingPubs(doi) {
     // Check cache using both title and DOI
     let cachedData = null;
     if (title && title !== "Unknown Title") {
-        cachedData = getCachedData(title);
+        cachedData = getCachedData(doi);
     }
     if (!cachedData || !Array.isArray(cachedData['cited-by'])) {
         cachedData = getCachedData(doi);
@@ -109,20 +109,19 @@ async function getCitingPubs(doi) {
             // Cache the transformed data if we have a title
             if (title && title !== "Unknown Title") {
                 // Get existing cache data to preserve the DOI
-                const existingData = getCachedData(title) || {};
-                const cacheData = { 
+                const existingData = getCachedData(doi) || {};
+                const cacheData = {
                     ...existingData,
                     doi, // Ensure DOI is set
-                    'cited-by': transformedData 
+                    'cited-by': transformedData
                 };
-                // Cache under both title and DOI
-                setCachedData(title, cacheData);
+                // Cache under DOI
                 setCachedData(doi, cacheData);
             } else {
                 // If no title, at least cache under DOI
-                setCachedData(doi, { 
+                setCachedData(doi, {
                     doi,
-                    'cited-by': transformedData 
+                    'cited-by': transformedData
                 });
             }
             
@@ -151,17 +150,15 @@ async function getCitingPubs(doi) {
 }
 
 async function getTitle(doi) {
-    // First check if we have this DOI cached directly
-    const doiCacheKey = `doi:${doi}`;
-    const cachedData = getCachedData(doiCacheKey);
+    // Check cache by DOI
+    let cachedData = getCachedData(doi);
     if (cachedData && cachedData.title) {
         return cachedData.title;
     }
 
-    // Check if it's an arXiv ID or DataCite DOI
     const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
     if (arxivMatch) {
-        const arxivId = arxivMatch[1];  // Get the ID from whichever group matched
+        const arxivId = arxivMatch[1];
         try {
             const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
             const text = await response.text();
@@ -169,9 +166,8 @@ async function getTitle(doi) {
             const xmlDoc = parser.parseFromString(text, "text/xml");
             const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
             if (title) {
-                // Cache both ways - by DOI and by title
-                setCachedData(doiCacheKey, { title });
-                setCachedData(`title:${title}`, { doi });
+                // Cache by DOI
+                setCachedData(doi, { title });
                 return title;
             }
             return "Unknown Title";
@@ -181,24 +177,21 @@ async function getTitle(doi) {
         }
     }
 
-    // If not arXiv or arXiv fetch failed, try Crossref
     try {
         const encodedDoi = encodeURIComponent(doi.replace(/\s+/g, ''));
         const url = `https://api.crossref.org/works/${encodedDoi}?${emailParam}`;
-        
         const response = await rateLimiter.add(() => fetch(url));
         const data = await response.json();
-        
+
         if (response.ok) {
             const title = data?.message?.title?.[0];
             if (title) {
-                // Cache both ways - by DOI and by title
-                setCachedData(doiCacheKey, { title });
-                setCachedData(`title:${title}`, { doi });
+                // Cache by DOI
+                setCachedData(doi, { title });
                 return title;
             }
         }
-        
+
         console.log(`No title found for DOI: ${doi}`);
         return "Unknown Title";
     } catch (error) {
@@ -232,7 +225,7 @@ async function handleCrossrefError(error, functionName) {
 async function preCacheCitations(dois) {
     await Promise.all(dois.map(async doi => {
         const title = await getTitle(doi);
-        if (title && title !== "Unknown Title" && !getCachedData(title)?.['cited-by']) {
+        if (title && title !== "Unknown Title" && !getCachedData(doi)?.['cited-by']) { // Updated here
             console.log(`Pre-caching citations for DOI: ${doi}`);
             await getCitingPubs(doi);
         }
