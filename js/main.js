@@ -12,7 +12,10 @@ import {
     addInput, 
     removeInput, 
     clearInput, 
-    updateClearButtonVisibility,
+    updateClearButtonVisibility, 
+    updateRemoveButtons, 
+    ensureRemoveButton,
+    updateInputWithTitle,
     copyToClipboard,
     showError 
 } from './ui.js';
@@ -118,8 +121,14 @@ async function initialisePage() {
             
             // If no inputs exist, add the initial two inputs
             if (existingInputs.length === 0) {
-                await Promise.all([addInput(), addInput()]);
+                addInput();
+                addInput();
                 existingInputs = container.querySelectorAll('.input-group');
+            } else {
+                // Ensure all existing inputs have remove buttons
+                existingInputs.forEach(inputGroup => {
+                    ensureRemoveButton(inputGroup);
+                });
             }
             
             // Process URL parameters if they exist
@@ -142,20 +151,25 @@ async function initialisePage() {
                 } else {
                     title = cachedData.title;
                 }
-                // Check if citations are already cached
-                // Check if citations are already cached
-                if (!cachedData?.['cited-by']) {
-                    // Pre-cache the citing publications if not cached
-                    console.log(`Pre-caching citations for DOI: ${doi} in initialisePage`);
-                    await getCitingPubs(doi);
-                } else {
-                    console.log(`Citations already cached for DOI: ${doi}, skipping pre-caching in initialisePage`);
-                }
+
+                
+                                // Check if citations are already cached
+                                // Check if citations are already cached
+                                if (!cachedData?.['cited-by']) {
+                                    // Pre-cache the citing publications if not cached
+                                    console.log(`Pre-caching citations for DOI: ${doi} in initialisePage`);
+                                    await getCitingPubs(doi);
+                                } else {
+                                    console.log(`Citations already cached for DOI: ${doi}, skipping pre-caching in initialisePage`);
+                                }
                 textarea.value = title && title !== "Unknown Title" ? title : doi;
                 updateClearButtonVisibility(textarea);
                 index++;
                 doi = getUrlParameter(`doi${index}`);
             }
+            
+            // Update remove buttons after all inputs are set up
+            updateRemoveButtons();
             
             window.isInitialized = true;
 
@@ -177,6 +191,7 @@ export {
     clearInput,
     copyToClipboard,
     findCommonCitations,
-    updateClearButtonVisibility,,
+    updateClearButtonVisibility,
+    ensureRemoveButton,
     initialisePage
 };

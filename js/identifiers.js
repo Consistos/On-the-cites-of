@@ -28,7 +28,7 @@ async function getDOI(input) {
             return cachedDataByDoi.doi; // Return DOI directly from cache
         }
 
-        // If DOI not in cache fetch title and DOI from Crossref
+        // If DOI not in cache, proceed to fetch title and DOI from Crossref
         const title = await getTitle(doi);
         if (title && title !== "Unknown Title") {
             // Cache title and DOI
