@@ -79,16 +79,6 @@ function updateClearButtonVisibility(textarea) {
     }
 }
 
-function updateRemoveButtons() {
-    const inputGroups = document.querySelectorAll('.input-group');
-    inputGroups.forEach((group, index) => {
-        const removeButton = group.querySelector('.remove-input');
-        if (removeButton) {
-            removeButton.style.display = inputGroups.length > 1 ? '' : 'none';
-        }
-    });
-}
-
 // Helper function to update input field with title
 async function updateInputWithTitle(input, title) {
     if (title && title !== "Unknown Title") {
@@ -119,27 +109,11 @@ async function copyToClipboard(text) {
     }
 }
 
-// Function to add remove button to an input group if it doesn't have one
-function ensureRemoveButton(inputGroup) {
-    if (!inputGroup.querySelector('.remove-input')) {
-        const removeButton = document.createElement('button');
-        removeButton.className = 'remove-input h-auto bg-white hover:bg-red-500 text-gray-600 hover:text-white px-4 rounded-lg transition-colors flex-shrink-0 group relative flex items-center justify-center';
-        removeButton.onclick = function() { removeInput(this); };
-        removeButton.innerHTML = `
-            <span class="text-xl">−</span>
-            <span class="invisible group-hover:visible absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap z-10">Remove</span>
-        `;
-        inputGroup.appendChild(removeButton);
-    }
-}
-
 export {
     addInput, 
     removeInput, 
     clearInput, 
-    updateClearButtonVisibility, 
-    updateRemoveButtons, 
-    ensureRemoveButton,
+    updateClearButtonVisibility,
     updateInputWithTitle,
     copyToClipboard,
     showError 
