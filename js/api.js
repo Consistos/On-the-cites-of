@@ -1,8 +1,8 @@
 import { showError } from './ui.js';
+import { getCachedData, setCachedData, createPreCacheCitations } from './cache.js';
 
 // Obfuscated email construction for Crossref API
 const emailParts = ['dbag', 'ory', '@', 'icl', 'oud.com'];
-const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // A week in milliseconds
 
 // Rate limiter for Crossref API
 class RateLimiter {
@@ -32,26 +32,6 @@ class RateLimiter {
 
 // Rate limiter instance
 const rateLimiter = new RateLimiter(5);
-
-function getCachedData(doi) {
-    const cached = localStorage.getItem(doi);
-    if (!cached) return null;
-    
-    const { data, timestamp } = JSON.parse(cached);
-    if (Date.now() - timestamp > CACHE_EXPIRY) {
-        localStorage.removeItem(doi);
-        return null;
-    }
-    return data;
-}
-
-function setCachedData(doi, data) {
-    const cacheEntry = {
-        data,
-        timestamp: Date.now()
-    };
-    localStorage.setItem(doi, JSON.stringify(cacheEntry));
-}
 
 const getEmail = () => emailParts.join('');
 const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
@@ -231,16 +211,8 @@ async function handleCrossrefError(error, functionName) {
     throw error;
 }
 
-// Helper function for pre-caching citations
-async function preCacheCitations(dois) {
-    await Promise.all(dois.map(async doi => {
-        const title = await getTitle(doi);
-        if (title && title !== "Unknown Title" && !getCachedData(doi)?.['cited-by']) { // Updated here
-            console.log(`Pre-caching citations for DOI: ${doi}`);
-            await getCitingPubs(doi);
-        }
-    }));
-}
+// Create preCacheCitations function with required dependencies
+const preCacheCitations = createPreCacheCitations(getTitle, getCitingPubs);
 
 export {
     getTitle,
@@ -248,7 +220,5 @@ export {
     rateLimiter,
     handleCrossrefResponse,
     handleCrossrefError,
-    getCachedData,
-    setCachedData,
     preCacheCitations
 };

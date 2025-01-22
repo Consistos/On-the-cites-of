@@ -4,10 +4,9 @@ import {
     rateLimiter,
     handleCrossrefResponse,
     handleCrossrefError,
-    getCachedData,
-    setCachedData,
     preCacheCitations
 } from './api.js';
+import { getCachedData, setCachedData } from './cache.js';
 import { getDOI, extractArXivDOI, extractPubMedDOI } from './identifiers.js';
 import { 
     addInput, 
