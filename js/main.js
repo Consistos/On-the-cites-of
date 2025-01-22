@@ -87,9 +87,7 @@ async function findCommonCitations(initialDois = null) {
         const commonReferences = allReferences.reduce((common, ref, index) => {
             if (index === 0) return ref.data;
             return common.filter(ref1 => {
-                console.log('ref1.citing:', ref1.citing);
                 return ref.data.some(ref2 => {
-                    console.log('ref2.citing:', ref2.citing);
                     return ref1.citing === ref2.citing;
                 });
             });
@@ -155,12 +153,16 @@ async function initialisePage() {
                     title = cachedData.title;
                 }
 
-                // Only fetch citations if we got a valid title and it's not already cached
-                if (title && title !== "Unknown Title" && !cachedData?.['cited-by']) {
-                    // Pre-cache the citing publications
-                    await getCitingPubs(doi);
-                }
-
+                
+                                // Check if citations are already cached
+                                // Check if citations are already cached
+                                if (!cachedData?.['cited-by']) {
+                                    // Pre-cache the citing publications if not cached
+                                    console.log(`Pre-caching citations for DOI: ${doi} in initialisePage`);
+                                    await getCitingPubs(doi);
+                                } else {
+                                    console.log(`Citations already cached for DOI: ${doi}, skipping pre-caching in initialisePage`);
+                                }
                 textarea.value = title && title !== "Unknown Title" ? title : doi;
                 updateClearButtonVisibility(textarea);
                 index++;

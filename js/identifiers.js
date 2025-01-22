@@ -8,16 +8,33 @@ const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
 
 async function getDOI(input) {
     const sanitizedInput = input.value.trim();
-    
+
+    // Check cache for title first
+    let cachedDataByTitle = getCachedData(sanitizedInput);
+    if (cachedDataByTitle && cachedDataByTitle.doi) {
+        console.log(`Using cached DOI for title: ${sanitizedInput}`);
+        return cachedDataByTitle.doi;
+    }
+
     // Handle DOI URLs or direct DOIs
     const doiMatch = sanitizedInput.match(/(?:doi\.org\/|dx\.doi\.org\/|doi:)?(\d+\.\d+\/[^\/\s]+)/i);
     if (doiMatch) {
         const doi = doiMatch[1];
+        
+        // Check cache for DOI
+        let cachedDataByDoi = getCachedData(doi);
+        if (cachedDataByDoi && cachedDataByDoi.doi) {
+            console.log(`Using cached DOI: ${doi}`);
+            return cachedDataByDoi.doi; // Return DOI directly from cache
+        }
+
+        // If DOI not in cache, proceed to fetch title and DOI from Crossref
         const title = await getTitle(doi);
         if (title && title !== "Unknown Title") {
-            // Only store the DOI, let getCitingPubs handle citations
-            const existingData = getCachedData(title);
-            setCachedData(title, { ...existingData, doi });
+            // Cache title and DOI
+            const existingData = getCachedData(doi) || {}; // Get existing data to avoid overwriting citations
+            setCachedData(doi, { ...existingData, doi, title }); // Cache under DOI
+            setCachedData(title, { ...existingData, doi }); // Also cache under title for fallback
             await updateInputWithTitle(input, title);
         }
         return doi;
@@ -92,19 +109,16 @@ async function getDOI(input) {
         }
     }
 
-    // Check cache for title
-    const cachedData = getCachedData(sanitizedInput);
-    if (cachedData && cachedData.doi) {
-        console.log(`Using cached DOI for title: ${sanitizedInput}`);
-        return cachedData.doi;
-    }
-
-    // Fall back to CrossRef search
+    // Fall back to CrossRef search if no DOI in cache
+    
+    // Check cache for title/input
+    
+    // If not found in cache, proceed to Crossref search
     try {
         const query = encodeURIComponent(sanitizedInput);
         const url = `https://api.crossref.org/works?query.bibliographic=${query}&rows=1&${emailParam}`;
         
-        const data = await rateLimiter.add(() => 
+        const data = await rateLimiter.add(() =>
             fetch(url)
                 .then(response => handleCrossrefResponse(response, 'getDOI'))
                 .catch(error => handleCrossrefError(error, 'getDOI'))
@@ -114,11 +128,18 @@ async function getDOI(input) {
             const doi = data.message.items[0].DOI;
             const title = data.message.items[0].title[0];
             
-            // Cache the DOI, let getCitingPubs handle citations
+            
+            
+            // Cache the DOI with both title and DOI as keys - ensure title is always cached
             if (title) {
-                const existingData = getCachedData(title);
-                setCachedData(title, { ...existingData, doi });
+                let existingDataTitle = getCachedData(title) || {};
+                setCachedData(title, { ...existingDataTitle, doi, title }); // Cache by title, include title in data
+                let existingDataDoi = getCachedData(doi) || {};
+                setCachedData(doi, { ...existingDataDoi, doi, title }); // Cache by DOI, include doi and title
                 await updateInputWithTitle(input, title);
+            } else {
+                let existingDataDoi = getCachedData(doi) || {};
+                setCachedData(doi, { ...existingDataDoi, doi }); // If no title, still cache DOI
             }
             
             return doi;

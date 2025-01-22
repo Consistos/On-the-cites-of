@@ -64,24 +64,34 @@ async function getCitingPubs(doi) {
         doi = `10.48550/arXiv.${arxivMatch[1]}`;
     }
 
-    // First get the title for this DOI
-    const title = await getTitle(doi);
-    
-    // Check cache using both title and DOI
-    let cachedData = null;
-    if (title && title !== "Unknown Title") {
-        cachedData = getCachedData(doi);
-    }
-    if (!cachedData || !Array.isArray(cachedData['cited-by'])) {
-        cachedData = getCachedData(doi);
-    }
-    
-    if (cachedData && Array.isArray(cachedData['cited-by'])) {
-        console.log(`Using cached citations for DOI: ${doi}, Count: ${cachedData['cited-by'].length}`);
+    // Check cache using DOI directly - before even getting the title
+    let cachedDataByDoi = getCachedData(doi);
+    if (cachedDataByDoi && Array.isArray(cachedDataByDoi['cited-by'])) {
+        console.log(`getCitingPubs: Cache HIT for DOI: ${doi}, Count: ${cachedDataByDoi['cited-by'].length}`);
         return {
             status: 'SUCCESS',
-            data: cachedData['cited-by']
+            data: cachedDataByDoi['cited-by']
         };
+    } else {
+        console.log(`getCitingPubs: Cache MISS for DOI: ${doi}`);
+    }
+
+    // First get the title for this DOI - after checking cache by DOI
+    const title = await getTitle(doi);
+    
+    
+    // If no cached citations found by DOI, check by title if available (fallback)
+    if (title && title !== "Unknown Title") {
+        let cachedDataByTitle = getCachedData(title); // Check cache by title as fallback
+        if (cachedDataByTitle && Array.isArray(cachedDataByTitle['cited-by'])) {
+            console.log(`getCitingPubs: Cache HIT for title (fallback): ${title}, Count: ${cachedDataByTitle['cited-by'].length}`);
+            return {
+                status: 'SUCCESS',
+                data: cachedDataByTitle['cited-by']
+            };
+        } else {
+            console.log(`getCitingPubs: Cache MISS for title (fallback): ${title}`);
+        }
     }
 
     try {
@@ -98,7 +108,7 @@ async function getCitingPubs(doi) {
         }
 
         const data = await response.json();
-        console.log(`Fetched citations for DOI: ${doi}, Status: ${response.status}, Count: ${data.length}`);
+        console.log(`getCitingPubs: Fetched citations from OpenCitations API for DOI: ${doi}, Status: ${response.status}, Count: ${data.length}`);
         if (data.length > 0) {
             // Transform the data to use the citing DOI as our reference
             const transformedData = data.map(citation => ({
