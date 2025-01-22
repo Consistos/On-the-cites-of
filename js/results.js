@@ -148,6 +148,8 @@ async function displayResults(commonReferences, dois, refCounts) {
     if (validReferencesCount === 0) {
         html += `<p>No results with available titles.</p>`;
     } else {
+        // Create a container for mobile results
+        html += `<div id="mobile-results-container">`;
         for (const [title, dois] of Object.entries(groupedReferences)) {
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
             html += `
@@ -175,9 +177,20 @@ async function displayResults(commonReferences, dois, refCounts) {
                 </table>
             `;
         }
+        html += `</div>`; // Close mobile-results-container
     }
     
     // Citations count for mobile
+    // Add "Load More" button for mobile if there are more results
+    if (totalReferences > itemsPerPage) {
+        html += `
+            <div class="text-center mt-4 mb-4">
+                <button id="load-more-mobile" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
+                    Load More
+                </button>
+            </div>`;
+    }
+
     html += `<div class="mt-4 text-sm text-gray-600">`;
     html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
     html += `</div>`;
@@ -250,14 +263,48 @@ async function displayResults(commonReferences, dois, refCounts) {
     
     resultsDiv.innerHTML = html;
 
-    // Add event listener for "Load More" button
+    // Add event listeners for "Load More" buttons
     const loadMoreButton = document.getElementById('load-more');
-    if (loadMoreButton) {
-        loadMoreButton.addEventListener('click', async () => {
-            const start = window.currentPage * itemsPerPage;
-            const end = start + itemsPerPage;
-            const { groupedReferences } = await renderReferences(start, end);
-            
+    const loadMoreMobileButton = document.getElementById('load-more-mobile');
+
+    const handleLoadMore = async (isMobile) => {
+        const start = window.currentPage * itemsPerPage;
+        const end = start + itemsPerPage;
+        const { groupedReferences } = await renderReferences(start, end);
+
+        if (isMobile) {
+            // For mobile view, append new cards
+            const mobileResultsContainer = document.getElementById('mobile-results-container');
+            for (const [title, dois] of Object.entries(groupedReferences)) {
+                const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
+                const card = document.createElement('table');
+                card.className = 'w-full mb-4 border border-gray-300';
+                card.innerHTML = `
+                    <tr>
+                        <td class="px-4 py-2">
+                            <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="px-4 py-2 border-t border-gray-300">
+                            <div class="flex justify-between items-center">
+                                <a href="${scholarUrl}" target="_blank" class="hover:underline">Google Scholar</a>
+                                <div class="flex items-center">
+                                    <span class="mr-2 text-gray-600">DOI</span>
+                                    <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                mobileResultsContainer.appendChild(card);
+            }
+        } else {
+            // For desktop view, append to table
             const tbody = document.getElementById('results-tbody');
             for (const [title, dois] of Object.entries(groupedReferences)) {
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
@@ -283,14 +330,22 @@ async function displayResults(commonReferences, dois, refCounts) {
                 `;
                 tbody.appendChild(row);
             }
-            
-            window.currentPage++;
-            
-            // Hide "Load More" button if we've loaded all results
-            if (end >= totalReferences) {
-                loadMoreButton.style.display = 'none';
-            }
-        });
+        }
+
+        window.currentPage++;
+
+        // Hide "Load More" buttons if we've loaded all results
+        if (end >= totalReferences) {
+            if (loadMoreButton) loadMoreButton.style.display = 'none';
+            if (loadMoreMobileButton) loadMoreMobileButton.style.display = 'none';
+        }
+    };
+
+    if (loadMoreButton) {
+        loadMoreButton.addEventListener('click', () => handleLoadMore(false));
+    }
+    if (loadMoreMobileButton) {
+        loadMoreMobileButton.addEventListener('click', () => handleLoadMore(true));
     }
 }
 
