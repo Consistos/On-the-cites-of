@@ -6,6 +6,33 @@ const emailParts = ['dbag', 'ory', '@', 'icl', 'oud.com'];
 const getEmail = () => emailParts.join('');
 const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
 
+// Function to calculate Levenshtein distance between two strings
+function levenshteinDistance(s1, s2) {
+    if (s1.length < s2.length) {
+        return levenshteinDistance(s2, s1);
+    }
+
+    // Handle empty strings
+    if (s2.length === 0) {
+        return s1.length;
+    }
+
+    let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
+
+    for (let i = 0; i < s1.length; i++) {
+        let currentRow = [i + 1];
+        for (let j = 0; j < s2.length; j++) {
+            let insertions = previousRow[j + 1] + 1;
+            let deletions = currentRow[j] + 1;
+            let substitutions = previousRow[j] + (s1[i] === s2[j] ? 0 : 1);
+            currentRow.push(Math.min(insertions, deletions, substitutions));
+        }
+        previousRow = currentRow;
+    }
+
+    return previousRow[s2.length];
+}
+
 async function getDOI(input) {
     const sanitizedInput = input.value.trim();
 
@@ -128,23 +155,33 @@ async function getDOI(input) {
             const doi = data.message.items[0].DOI;
             const title = data.message.items[0].title[0];
             
-            
-            
-            // Cache the DOI with both title and DOI as keys - ensure title is always cached
-            if (title) {
-                let existingDataTitle = getCachedData(title) || {};
-                setCachedData(title, { ...existingDataTitle, doi, title }); // Cache by title, include title in data
-                let existingDataDoi = getCachedData(doi) || {};
-                setCachedData(doi, { ...existingDataDoi, doi, title }); // Cache by DOI, include doi and title
+            // Calculate similarity
+            const inputLower = sanitizedInput.toLowerCase();
+            const titleLower = title.toLowerCase();
+            const distance = levenshteinDistance(inputLower, titleLower);
+            // Allow distance up to 5% of input length (adjust threshold as needed)
+            const threshold = Math.floor(inputLower.length * 0.05); 
+
+            console.log(`Crossref found: "${title}" (DOI: ${doi}). Comparing with "${sanitizedInput}". Distance: ${distance}, Threshold: ${threshold}`);
+
+            if (distance <= threshold) {
+                console.log(`Title match is close enough. Using DOI: ${doi}`);
+                // Cache title and DOI
+                const existingData = getCachedData(doi) || {}; // Get existing data to avoid overwriting citations
+                setCachedData(doi, { ...existingData, doi, title }); // Cache under DOI
+                setCachedData(title, { ...existingData, doi }); // Also cache under title for fallback
                 await updateInputWithTitle(input, title);
+                return doi;
             } else {
-                let existingDataDoi = getCachedData(doi) || {};
-                setCachedData(doi, { ...existingDataDoi, doi }); // If no title, still cache DOI
+                console.log(`Title match "${title}" is too dissimilar to query "${sanitizedInput}". Discarding result.`);
+                // Cache as 'not_found' for the original input to prevent repeated searches
+                setCachedData(sanitizedInput, { status: 'not_found', message: `Found title "${title}" dissimilar to query.` });
             }
-            
-            return doi;
+        } else {
+            console.log(`No items found in Crossref search for "${sanitizedInput}"`);
+            // Cache as 'not_found'
+            setCachedData(sanitizedInput, { status: 'not_found', message: 'No results from Crossref title search.' });
         }
-        return null;
     } catch (error) {
         console.error('Error in getDOI:', error);
         return null;
@@ -169,7 +206,6 @@ async function extractPubMedDOI(pmid) {
 async function extractArXivDOI(arxivId) {
     // Return the DataCite DOI format for arXiv papers
     return `10.48550/arXiv.${arxivId}`;
-
-
 }
+
 export { getDOI, extractArXivDOI, extractPubMedDOI };
