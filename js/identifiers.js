@@ -168,7 +168,7 @@ async function getDOI(input) {
     // If not found in cache, proceed to Crossref search
     try {
         const query = encodeURIComponent(sanitizedInput);
-        const url = `https://api.crossref.org/works?query.bibliographic=${query}&rows=1&${emailParam}`;
+        const url = `https://api.crossref.org/works?query.bibliographic=${query}&rows=5&${emailParam}`;
 
         const data = await rateLimiter.add(() =>
             fetch(url)
@@ -177,28 +177,44 @@ async function getDOI(input) {
         );
 
         if (data.message.items.length > 0) {
-            const doi = data.message.items[0].DOI;
-            const title = data.message.items[0].title[0];
+            // Find the best match based on title similarity and citation count
+            let bestMatch = null;
+            let bestScore = -1;
 
-            // Calculate similarity after normalizing titles
-            const normalizedInput = normalizeTitle(sanitizedInput).toLowerCase();
-            const normalizedTitle = normalizeTitle(title).toLowerCase();
-            const distance = levenshteinDistance(normalizedInput, normalizedTitle);
-            // Allow distance up to 20% of normalized input length, with a minimum of 15
-            // If normalization worked well, use a more generous threshold
-            const baseThreshold = Math.max(15, Math.floor(normalizedInput.length * 0.25));
-            // If the original title was much longer than normalized, be even more generous
-            const lengthDiff = title.length - normalizedTitle.length;
-            const threshold = lengthDiff > 20 ? baseThreshold + 10 : baseThreshold;
+            for (const item of data.message.items) {
+                const doi = item.DOI;
+                const title = item.title[0];
+                const citationCount = item['is-referenced-by-count'] || 0;
 
-            console.log(`Crossref found: "${title}" (DOI: ${doi}). Comparing with "${sanitizedInput}". Distance: ${distance}, Threshold: ${threshold}`);
-            console.log(`Original title: "${title}"`);
-            console.log(`Normalized title: "${normalizedTitle}"`);
-            console.log(`Original input: "${sanitizedInput}"`);
-            console.log(`Normalized input: "${normalizedInput}"`);
+                // Calculate similarity after normalizing titles
+                const normalizedInput = normalizeTitle(sanitizedInput).toLowerCase();
+                const normalizedTitle = normalizeTitle(title).toLowerCase();
+                const distance = levenshteinDistance(normalizedInput, normalizedTitle);
+                const baseThreshold = Math.max(15, Math.floor(normalizedInput.length * 0.25));
+                const lengthDiff = title.length - normalizedTitle.length;
+                const threshold = lengthDiff > 20 ? baseThreshold + 10 : baseThreshold;
 
-            if (distance <= threshold) {
-                console.log(`Title match is close enough. Using DOI: ${doi}`);
+                // Only consider matches that meet the similarity threshold
+                if (distance <= threshold) {
+                    // Score based on citation count (higher is better) and similarity (lower distance is better)
+                    // Normalize distance to 0-1 scale and invert it, then combine with citation count
+                    const similarityScore = Math.max(0, 1 - (distance / threshold));
+                    const score = citationCount + (similarityScore * 100); // Weight similarity highly
+
+                    console.log(`Candidate: "${title}" (DOI: ${doi}), Citations: ${citationCount}, Distance: ${distance}, Score: ${score.toFixed(2)}`);
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatch = { doi, title, citationCount, distance };
+                    }
+                }
+            }
+
+            if (bestMatch) {
+                const { doi, title, citationCount, distance } = bestMatch;
+
+                console.log(`Selected best match: "${title}" (DOI: ${doi}), Citations: ${citationCount}, Distance: ${distance}`);
+
                 // Cache title and DOI
                 const existingData = getCachedData(doi) || {}; // Get existing data to avoid overwriting citations
                 setCachedData(doi, { ...existingData, doi, title }); // Cache under DOI
@@ -206,9 +222,9 @@ async function getDOI(input) {
                 await updateInputWithTitle(input, title);
                 return doi;
             } else {
-                console.log(`Title match "${title}" is too dissimilar to query "${sanitizedInput}". Discarding result.`);
+                console.log(`No suitable matches found for "${sanitizedInput}" among ${data.message.items.length} results`);
                 // Cache as 'not_found' for the original input to prevent repeated searches
-                setCachedData(sanitizedInput, { status: 'not_found', message: `Found title "${title}" dissimilar to query.` });
+                setCachedData(sanitizedInput, { status: 'not_found', message: 'No suitable title matches found in Crossref results.' });
             }
         } else {
             console.log(`No items found in Crossref search for "${sanitizedInput}"`);
