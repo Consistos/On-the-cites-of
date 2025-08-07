@@ -9,6 +9,7 @@ const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
 // Function to normalize titles by removing common prefixes
 function normalizeTitle(title) {
     const prefixes = [
+        'Faculty Opinions recommendation of ',
         'Review of: ',
         'Commentary on: ',
         'Response to: ',
