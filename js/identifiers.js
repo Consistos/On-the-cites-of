@@ -6,6 +6,30 @@ const emailParts = ['dbag', 'ory', '@', 'icl', 'oud.com'];
 const getEmail = () => emailParts.join('');
 const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
 
+// Function to normalize titles by removing common prefixes
+function normalizeTitle(title) {
+    const prefixes = [
+        'Review of: ',
+        'Commentary on: ',
+        'Response to: ',
+        'Letter to the editor: ',
+        'Editorial: ',
+        'Correction to: ',
+        'Erratum to: ',
+        'Retraction of: '
+    ];
+
+    let normalized = title;
+    for (const prefix of prefixes) {
+        if (normalized.startsWith(prefix)) {
+            normalized = normalized.substring(prefix.length);
+            break; // Only remove the first matching prefix
+        }
+    }
+
+    return normalized.trim();
+}
+
 // Function to calculate Levenshtein distance between two strings
 function levenshteinDistance(s1, s2) {
     if (s1.length < s2.length) {
@@ -47,7 +71,7 @@ async function getDOI(input) {
     const doiMatch = sanitizedInput.match(/(?:doi\.org\/|dx\.doi\.org\/|doi:)?(\d+\.\d+\/[^\/\s]+)/i);
     if (doiMatch) {
         const doi = doiMatch[1];
-        
+
         // Check cache for DOI
         let cachedDataByDoi = getCachedData(doi);
         if (cachedDataByDoi && cachedDataByDoi.doi) {
@@ -66,7 +90,7 @@ async function getDOI(input) {
         }
         return doi;
     }
-    
+
     // Handle arXiv URLs or IDs first (since they have a specific format)
     const arxivUrlMatch = sanitizedInput.match(/arxiv\.org\/(?:abs|pdf|html)\/(\d{4}\.\d{4,5}(?:v\d+)?)/i);
     if (arxivUrlMatch) {
@@ -79,7 +103,7 @@ async function getDOI(input) {
             const xmlDoc = parser.parseFromString(text, "text/xml");
             const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
             const doi = `10.48550/arXiv.${arxivId}`;
-            
+
             if (title) {
                 // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
@@ -92,7 +116,7 @@ async function getDOI(input) {
             return `10.48550/arXiv.${arxivId}`;
         }
     }
-    
+
     // Handle direct arXiv identifiers
     const arxivIdMatch = sanitizedInput.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
     if (arxivIdMatch) {
@@ -105,7 +129,7 @@ async function getDOI(input) {
             const xmlDoc = parser.parseFromString(text, "text/xml");
             const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
             const doi = `10.48550/arXiv.${arxivId}`;
-            
+
             if (title) {
                 // Only store the DOI, let getCitingPubs handle citations
                 const existingData = getCachedData(title);
@@ -118,7 +142,7 @@ async function getDOI(input) {
             return `10.48550/arXiv.${arxivId}`;
         }
     }
-    
+
     // Handle PubMed URLs or IDs (after arXiv to prevent false matches)
     const pubmedMatch = sanitizedInput.match(/(?:pubmed\.ncbi\.nlm\.nih\.gov\/|^)?(?:PMC)?(\d{6,8})(?:\/)?$/i);
     if (pubmedMatch) {
@@ -137,14 +161,14 @@ async function getDOI(input) {
     }
 
     // Fall back to CrossRef search if no DOI in cache
-    
+
     // Check cache for title/input
-    
+
     // If not found in cache, proceed to Crossref search
     try {
         const query = encodeURIComponent(sanitizedInput);
         const url = `https://api.crossref.org/works?query.bibliographic=${query}&rows=1&${emailParam}`;
-        
+
         const data = await rateLimiter.add(() =>
             fetch(url)
                 .then(response => handleCrossrefResponse(response, 'getDOI'))
@@ -154,15 +178,15 @@ async function getDOI(input) {
         if (data.message.items.length > 0) {
             const doi = data.message.items[0].DOI;
             const title = data.message.items[0].title[0];
-            
-            // Calculate similarity
-            const inputLower = sanitizedInput.toLowerCase();
-            const titleLower = title.toLowerCase();
-            const distance = levenshteinDistance(inputLower, titleLower);
-            // Allow distance up to 5% of input length (adjust threshold as needed)
-            const threshold = Math.floor(inputLower.length * 0.05); 
 
-            console.log(`Crossref found: "${title}" (DOI: ${doi}). Comparing with "${sanitizedInput}". Distance: ${distance}, Threshold: ${threshold}`);
+            // Calculate similarity after normalizing titles
+            const normalizedInput = normalizeTitle(sanitizedInput).toLowerCase();
+            const normalizedTitle = normalizeTitle(title).toLowerCase();
+            const distance = levenshteinDistance(normalizedInput, normalizedTitle);
+            // Allow distance up to 5% of normalized input length (adjust threshold as needed)
+            const threshold = Math.floor(normalizedInput.length * 0.05);
+
+            console.log(`Crossref found: "${title}" (DOI: ${doi}). Comparing normalized "${normalizedTitle}" with "${normalizedInput}". Distance: ${distance}, Threshold: ${threshold}`);
 
             if (distance <= threshold) {
                 console.log(`Title match is close enough. Using DOI: ${doi}`);
