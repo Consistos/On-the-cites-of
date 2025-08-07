@@ -184,10 +184,14 @@ async function getDOI(input) {
             const normalizedInput = normalizeTitle(sanitizedInput).toLowerCase();
             const normalizedTitle = normalizeTitle(title).toLowerCase();
             const distance = levenshteinDistance(normalizedInput, normalizedTitle);
-            // Allow distance up to 5% of normalized input length (adjust threshold as needed)
-            const threshold = Math.floor(normalizedInput.length * 0.05);
+            // Allow distance up to 20% of normalized input length, with a minimum of 10
+            const threshold = Math.max(10, Math.floor(normalizedInput.length * 0.20));
 
-            console.log(`Crossref found: "${title}" (DOI: ${doi}). Comparing normalized "${normalizedTitle}" with "${normalizedInput}". Distance: ${distance}, Threshold: ${threshold}`);
+            console.log(`Crossref found: "${title}" (DOI: ${doi}). Comparing with "${sanitizedInput}". Distance: ${distance}, Threshold: ${threshold}`);
+            console.log(`Original title: "${title}"`);
+            console.log(`Normalized title: "${normalizedTitle}"`);
+            console.log(`Original input: "${sanitizedInput}"`);
+            console.log(`Normalized input: "${normalizedInput}"`);
 
             if (distance <= threshold) {
                 console.log(`Title match is close enough. Using DOI: ${doi}`);
