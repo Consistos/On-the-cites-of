@@ -36,7 +36,7 @@ const rateLimiter = new RateLimiter(5);
 const getEmail = () => emailParts.join('');
 const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
 
-async function getCitingPubs(doi) {
+async function getCitingPubs(doi, offset = 0, limit = 20) {
     // Convert arXiv ID to DataCite DOI format if needed
     const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.?)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
     const isArxiv = !!arxivMatch;
@@ -47,10 +47,15 @@ async function getCitingPubs(doi) {
     // Check cache using DOI directly - before even getting the title
     let cachedDataByDoi = getCachedData(doi);
     if (cachedDataByDoi && Array.isArray(cachedDataByDoi['cited-by'])) {
-        console.log(`getCitingPubs: Cache HIT for DOI: ${doi}, Count: ${cachedDataByDoi['cited-by'].length}`);
+        console.log(`getCitingPubs: Cache HIT for DOI: ${doi}, Total: ${cachedDataByDoi['cited-by'].length}, Offset: ${offset}`);
+        const totalCount = cachedDataByDoi['cited-by'].length;
+        const paginatedData = cachedDataByDoi['cited-by'].slice(offset, offset + limit);
         return {
             status: 'SUCCESS',
-            data: cachedDataByDoi['cited-by']
+            data: paginatedData,
+            totalCount,
+            hasMore: offset + limit < totalCount,
+            nextOffset: offset + limit < totalCount ? offset + limit : null
         };
     } else {
         console.log(`getCitingPubs: Cache MISS for DOI: ${doi}`);
@@ -64,10 +69,15 @@ async function getCitingPubs(doi) {
     if (title && title !== "Unknown Title") {
         let cachedDataByTitle = getCachedData(title); // Check cache by title as fallback
         if (cachedDataByTitle && Array.isArray(cachedDataByTitle['cited-by'])) {
-            console.log(`getCitingPubs: Cache HIT for title (fallback): ${title}, Count: ${cachedDataByTitle['cited-by'].length}`);
+            console.log(`getCitingPubs: Cache HIT for title (fallback): ${title}, Total: ${cachedDataByTitle['cited-by'].length}, Offset: ${offset}`);
+            const totalCount = cachedDataByTitle['cited-by'].length;
+            const paginatedData = cachedDataByTitle['cited-by'].slice(offset, offset + limit);
             return {
                 status: 'SUCCESS',
-                data: cachedDataByTitle['cited-by']
+                data: paginatedData,
+                totalCount,
+                hasMore: offset + limit < totalCount,
+                nextOffset: offset + limit < totalCount ? offset + limit : null
             };
         } else {
             console.log(`getCitingPubs: Cache MISS for title (fallback): ${title}`);
@@ -87,6 +97,9 @@ async function getCitingPubs(doi) {
             return {
                 status: 'API_ERROR',
                 data: [],
+                totalCount: 0,
+                hasMore: false,
+                nextOffset: null,
                 message: `Failed to fetch data from OpenCitations (Status: ${response.status})`
             };
         }
@@ -117,24 +130,21 @@ async function getCitingPubs(doi) {
             return {
                 status: 'API_ERROR',
                 data: [],
+                totalCount: 0,
+                hasMore: false,
+                nextOffset: null,
                 message: userMessage
             };
         }
         console.log(`getCitingPubs: Fetched citations from OpenCitations API for DOI: ${doi}, Status: ${response.status}, Count: ${data.length}`);
         if (data.length > 0) {
             // Transform the data to use the citing DOI as our reference
-            let transformedData = data.map(citation => ({
+            const transformedData = data.map(citation => ({
                 ...citation,
                 citing: citation.citing.split(' ').find(id => id.startsWith('doi:'))?.substring(4) || citation.citing
             }));
 
-            // Limit to first 20 citations if there are many
-            if (transformedData.length > 20) {
-                console.log(`getCitingPubs: Limiting citations from ${transformedData.length} to 20 for DOI: ${doi}`);
-                transformedData = transformedData.slice(0, 20);
-            }
-
-            // Cache the transformed data if we have a title
+            // Cache the full transformed dataset
             if (title && title !== "Unknown Title") {
                 // Get existing cache data to preserve the DOI
                 const existingData = getCachedData(doi) || {};
@@ -153,9 +163,16 @@ async function getCitingPubs(doi) {
                 });
             }
 
+            // Return paginated results
+            const totalCount = transformedData.length;
+            const paginatedData = transformedData.slice(offset, offset + limit);
+
             return {
                 status: 'SUCCESS',
-                data: transformedData
+                data: paginatedData,
+                totalCount,
+                hasMore: offset + limit < totalCount,
+                nextOffset: offset + limit < totalCount ? offset + limit : null
             };
         } else {
             // OpenCitations returned an empty array for citations
@@ -175,13 +192,19 @@ async function getCitingPubs(doi) {
                 return {
                     status: 'NO_DATA',
                     data: [],
+                    totalCount: 0,
+                    hasMore: false,
+                    nextOffset: null,
                     message: `OpenCitations has no data for this arXiv paper (${arxivMatch[1]}), likely because it has not been published in a peer-reviewed venue. Try searching on <a href=https://scholar.google.com>Google Scholar</a> instead.`
                 };
             } else {
                 // Generic NO_DATA for non-arXiv DOIs if OpenCitations returns empty
                 return {
                     status: 'NO_DATA',
-                    data: []
+                    data: [],
+                    totalCount: 0,
+                    hasMore: false,
+                    nextOffset: null
                 };
             }
         }
@@ -190,6 +213,9 @@ async function getCitingPubs(doi) {
         return {
             status: 'API_ERROR',
             data: [],
+            totalCount: 0,
+            hasMore: false,
+            nextOffset: null,
             message: 'Failed to connect to OpenCitations API. Please try again later.'
         };
     }
@@ -267,12 +293,18 @@ async function handleCrossrefError(error, functionName) {
     throw error;
 }
 
+// Helper function to load more citations
+async function loadMoreCitations(doi, offset) {
+    return await getCitingPubs(doi, offset);
+}
+
 // Create preCacheCitations function with required dependencies
 const preCacheCitations = createPreCacheCitations(getTitle, getCitingPubs);
 
 export {
     getTitle,
     getCitingPubs,
+    loadMoreCitations,
     rateLimiter,
     handleCrossrefResponse,
     handleCrossrefError,
