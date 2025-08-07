@@ -16,7 +16,7 @@ class RateLimiter {
         if (this.currentRequests >= this.maxConcurrent) {
             await new Promise(resolve => this.queue.push(resolve));
         }
-        
+
         this.currentRequests++;
         try {
             return await fn();
@@ -58,8 +58,8 @@ async function getCitingPubs(doi) {
 
     // First get the title for this DOI - after checking cache by DOI
     const title = await getTitle(doi);
-    
-    
+
+
     // If no cached citations found by DOI, check by title if available (fallback)
     if (title && title !== "Unknown Title") {
         let cachedDataByTitle = getCachedData(title); // Check cache by title as fallback
@@ -81,7 +81,7 @@ async function getCitingPubs(doi) {
         const proxyBase = 'https://api.allorigins.win/raw?url=';
         const proxiedUrl = `${proxyBase}${encodeURIComponent(targetUrl)}`;
         const response = await rateLimiter.add(() => fetch(proxiedUrl));
-        
+
         if (!response.ok) {
             console.error(`OpenCitations API error: ${response.status} for DOI ${doi}`);
             return {
@@ -127,7 +127,7 @@ async function getCitingPubs(doi) {
                 ...citation,
                 citing: citation.citing.split(' ').find(id => id.startsWith('doi:'))?.substring(4) || citation.citing
             }));
-            
+
             // Cache the transformed data if we have a title
             if (title && title !== "Unknown Title") {
                 // Get existing cache data to preserve the DOI
@@ -146,7 +146,7 @@ async function getCitingPubs(doi) {
                     'cited-by': transformedData
                 });
             }
-            
+
             return {
                 status: 'SUCCESS',
                 data: transformedData
@@ -154,7 +154,7 @@ async function getCitingPubs(doi) {
         } else {
             // OpenCitations returned an empty array for citations
             console.log(`getCitingPubs: OpenCitations returned no citations for DOI: ${doi}`);
-            
+
             // "Cache" this empty result to prevent repeated API calls for known empty sets
             if (title && title !== "Unknown Title") {
                 const existingData = getCachedData(doi) || {};
@@ -164,7 +164,7 @@ async function getCitingPubs(doi) {
             }
 
             // Specific handling for arXiv if it was one (arxivMatch is from line 41)
-            if (arxivMatch) { // Check if arxivMatch is not null
+            if (arxivMatch && arxivMatch[1]) { // Check if arxivMatch is not null and has the expected capture group
                 console.log(`No citation data available for arXiv paper: ${arxivMatch[1]}`);
                 return {
                     status: 'NO_DATA',
