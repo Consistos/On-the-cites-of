@@ -123,10 +123,16 @@ async function getCitingPubs(doi) {
         console.log(`getCitingPubs: Fetched citations from OpenCitations API for DOI: ${doi}, Status: ${response.status}, Count: ${data.length}`);
         if (data.length > 0) {
             // Transform the data to use the citing DOI as our reference
-            const transformedData = data.map(citation => ({
+            let transformedData = data.map(citation => ({
                 ...citation,
                 citing: citation.citing.split(' ').find(id => id.startsWith('doi:'))?.substring(4) || citation.citing
             }));
+
+            // Limit to first 20 citations if there are many
+            if (transformedData.length > 20) {
+                console.log(`getCitingPubs: Limiting citations from ${transformedData.length} to 20 for DOI: ${doi}`);
+                transformedData = transformedData.slice(0, 20);
+            }
 
             // Cache the transformed data if we have a title
             if (title && title !== "Unknown Title") {
