@@ -88,7 +88,7 @@ async function findCommonCitations(initialDois = null) {
     }
 }
 
-async function displayResults(commonReferences, dois, refCounts) {
+async function displayResults(commonReferences, dois, refCounts, allReferences = null) {
     const resultsDiv = document.getElementById('results');
     // Remove loading overlay if it exists
     const loadingOverlay = resultsDiv.querySelector('.bg-white.bg-opacity-80');
@@ -186,13 +186,24 @@ async function displayResults(commonReferences, dois, refCounts) {
         html += `
             <div class="text-center mt-4 mb-4">
                 <button id="load-more-mobile" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
-                    Load More
+                    Load More (${Math.min(itemsPerPage, totalReferences - itemsPerPage)} more)
                 </button>
             </div>`;
     }
 
     html += `<div class="mt-4 text-sm text-gray-600">`;
-    html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
+    if (allReferences && allReferences.length > 0) {
+        // Show total counts and pagination info for individual papers
+        html += dois.map((doi, index) => {
+            const ref = allReferences[index];
+            const totalCount = ref?.totalCount || refCounts[index];
+            const hasMore = ref?.hasMore || false;
+            return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}${hasMore ? ' (showing first 20)' : ''}`;
+        }).join(' • ');
+    } else {
+        // Fallback to original display
+        html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
+    }
     html += `</div>`;
     html += `</div>`; // Close mobile view
 
@@ -247,7 +258,7 @@ async function displayResults(commonReferences, dois, refCounts) {
             html += `
                 <div class="text-center mt-4 mb-8">
                     <button id="load-more" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
-                        Load More
+                        Load More (${Math.min(itemsPerPage, totalReferences - itemsPerPage)} more)
                     </button>
                 </div>`;
         }
@@ -257,7 +268,18 @@ async function displayResults(commonReferences, dois, refCounts) {
     
     // Citations count for desktop
     html += `<div class="mt-4 text-sm text-gray-600 text-center">`;
-    html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
+    if (allReferences && allReferences.length > 0) {
+        // Show total counts and pagination info for individual papers
+        html += dois.map((doi, index) => {
+            const ref = allReferences[index];
+            const totalCount = ref?.totalCount || refCounts[index];
+            const hasMore = ref?.hasMore || false;
+            return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}${hasMore ? ' (showing first 20)' : ''}`;
+        }).join(' • ');
+    } else {
+        // Fallback to original display
+        html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
+    }
     html += `</div>`;
     html += `</div>`; // Close desktop view
     
@@ -268,6 +290,105 @@ async function displayResults(commonReferences, dois, refCounts) {
     const loadMoreMobileButton = document.getElementById('load-more-mobile');
 
     const handleLoadMore = async (isMobile) => {
+        // Check if we have a single paper with more citations to load
+        if (dois.length === 1 && allReferences && allReferences[0]?.hasMore) {
+            const doi = dois[0];
+            const nextOffset = allReferences[0].nextOffset;
+            
+            // Load more citations from API
+            const moreResults = await getCitingPubs(doi, nextOffset);
+            if (moreResults.status === 'SUCCESS') {
+                // Add new citations to the existing results
+                uniqueReferences.push(...moreResults.data);
+                window.allReferences = uniqueReferences;
+                
+                // Update allReferences with new pagination info
+                allReferences[0] = moreResults;
+                
+                // Render the new batch
+                const start = window.currentPage * itemsPerPage;
+                const end = start + itemsPerPage;
+                const { groupedReferences } = await renderReferences(start, end);
+                
+                // Update UI with new results
+                if (isMobile) {
+                    // For mobile view, append new cards
+                    const mobileResultsContainer = document.getElementById('mobile-results-container');
+                    for (const [title, dois] of Object.entries(groupedReferences)) {
+                        const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
+                        const card = document.createElement('table');
+                        card.className = 'w-full mb-4 border border-gray-300';
+                        card.innerHTML = `
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 border-t border-gray-300">
+                                    <div class="flex justify-between items-center">
+                                        <a href="${scholarUrl}" target="_blank" class="hover:underline">Google Scholar</a>
+                                        <div class="flex items-center">
+                                            <span class="mr-2 text-gray-600">DOI</span>
+                                            <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        mobileResultsContainer.appendChild(card);
+                    }
+                } else {
+                    // For desktop view, append to table
+                    const tbody = document.getElementById('results-tbody');
+                    for (const [title, dois] of Object.entries(groupedReferences)) {
+                        const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="break-words py-2 border border-gray-300 p-2">
+                                <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
+                            </td>
+                            <td class="break-words py-2 text-center border border-gray-300 p-2">
+                                <a href="${scholarUrl}" target="_blank" class="hover:underline">🔗</a>
+                            </td>
+                            <td class="break-words py-2 text-center border border-gray-300 p-2">
+                                <div class="relative">
+                                    <div id="copyMessage-${dois[0]}" class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-md opacity-0 transition-opacity duration-200">Copied!</div>
+                                    <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
+                                        <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                        </svg>
+                                    </button>
+                                    ${dois.length > 1 ? `<div class="text-sm text-gray-600">${dois.length} DOIs</div>` : ''}
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    }
+                }
+                
+                window.currentPage++;
+                
+                // Update button text and hide if no more results
+                if (!moreResults.hasMore) {
+                    if (loadMoreButton) loadMoreButton.style.display = 'none';
+                    if (loadMoreMobileButton) loadMoreMobileButton.style.display = 'none';
+                } else {
+                    const remaining = moreResults.totalCount - (nextOffset + 20);
+                    const nextBatch = Math.min(20, remaining);
+                    if (loadMoreButton) loadMoreButton.textContent = `Load More (${nextBatch} more)`;
+                    if (loadMoreMobileButton) loadMoreMobileButton.textContent = `Load More (${nextBatch} more)`;
+                }
+                
+                return;
+            }
+        }
+        
+        // Original pagination logic for common citations
         const start = window.currentPage * itemsPerPage;
         const end = start + itemsPerPage;
         const { groupedReferences } = await renderReferences(start, end);
