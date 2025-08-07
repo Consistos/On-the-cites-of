@@ -141,10 +141,36 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 
     let html = '';
     
+    // Show total citation counts at the top
+    html += `<div class="text-center mb-6 mt-4">`;
+    if (allReferences && allReferences.length > 0) {
+        // Show total counts and pagination info for individual papers
+        html += `<div class="text-lg font-medium mb-2">`;
+        html += dois.map((doi, index) => {
+            const ref = allReferences[index];
+            const totalCount = ref?.totalCount || refCounts[index];
+            const hasMore = ref?.hasMore || false;
+            return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}`;
+        }).join(' • ');
+        html += `</div>`;
+        
+        // Show pagination info if applicable
+        const hasAnyMore = allReferences.some(ref => ref?.hasMore);
+        if (hasAnyMore) {
+            html += `<div class="text-sm text-gray-600">Showing first 20 results</div>`;
+        }
+    } else {
+        // Fallback to original display
+        html += `<div class="text-lg font-medium">`;
+        html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
+        html += `</div>`;
+    }
+    html += `</div>`;
+
     // Mobile view
     html += `<div class="sm:hidden px-4">`;
     // Results section for mobile
-    html += `<h2 class="text-lg text-center mt-8 mb-4">${totalReferences} result${totalReferences === 1 ? '' : 's'}</h2>`;
+    html += `<h2 class="text-lg text-center mb-4">${totalReferences} result${totalReferences === 1 ? '' : 's'} displayed</h2>`;
     if (validReferencesCount === 0) {
         html += `<p>No results with available titles.</p>`;
     } else {
@@ -180,37 +206,31 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         html += `</div>`; // Close mobile-results-container
     }
     
-    // Citations count for mobile
     // Add "Load More" button for mobile if there are more results
-    if (totalReferences > itemsPerPage) {
+    const shouldShowLoadMore = totalReferences > itemsPerPage || (allReferences && allReferences.some(ref => ref?.hasMore));
+    if (shouldShowLoadMore) {
+        let buttonText = 'Load More';
+        if (allReferences && allReferences.length === 1 && allReferences[0]?.hasMore) {
+            // Single paper with more citations
+            const remaining = allReferences[0].totalCount - 20;
+            buttonText = `Load More (${Math.min(20, remaining)} more)`;
+        } else if (totalReferences > itemsPerPage) {
+            // Common citations pagination
+            buttonText = `Load More (${Math.min(itemsPerPage, totalReferences - itemsPerPage)} more)`;
+        }
         html += `
             <div class="text-center mt-4 mb-4">
                 <button id="load-more-mobile" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
-                    Load More (${Math.min(itemsPerPage, totalReferences - itemsPerPage)} more)
+                    ${buttonText}
                 </button>
             </div>`;
     }
-
-    html += `<div class="mt-4 text-sm text-gray-600">`;
-    if (allReferences && allReferences.length > 0) {
-        // Show total counts and pagination info for individual papers
-        html += dois.map((doi, index) => {
-            const ref = allReferences[index];
-            const totalCount = ref?.totalCount || refCounts[index];
-            const hasMore = ref?.hasMore || false;
-            return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}${hasMore ? ' (showing first 20)' : ''}`;
-        }).join(' • ');
-    } else {
-        // Fallback to original display
-        html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
-    }
-    html += `</div>`;
     html += `</div>`; // Close mobile view
 
     // Desktop view
     html += `<div class="hidden sm:block">`;
     // Display number of valid references above the table
-    html += `<p class="text-center mb-3">${totalReferences} result${totalReferences === 1 ? '' : 's'}</p>`;
+    html += `<p class="text-center mb-3">${totalReferences} result${totalReferences === 1 ? '' : 's'} displayed</p>`;
     
     if (validReferencesCount === 0 && commonReferences.length > 0) {
         html += `<p class="text-center">Citations in common found, but no titles available.</p>`;
@@ -254,11 +274,20 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             </table>`;
 
         // Add "Load More" button if there are more results
-        if (totalReferences > itemsPerPage) {
+        if (shouldShowLoadMore) {
+            let buttonText = 'Load More';
+            if (allReferences && allReferences.length === 1 && allReferences[0]?.hasMore) {
+                // Single paper with more citations
+                const remaining = allReferences[0].totalCount - 20;
+                buttonText = `Load More (${Math.min(20, remaining)} more)`;
+            } else if (totalReferences > itemsPerPage) {
+                // Common citations pagination
+                buttonText = `Load More (${Math.min(itemsPerPage, totalReferences - itemsPerPage)} more)`;
+            }
             html += `
                 <div class="text-center mt-4 mb-8">
                     <button id="load-more" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
-                        Load More (${Math.min(itemsPerPage, totalReferences - itemsPerPage)} more)
+                        ${buttonText}
                     </button>
                 </div>`;
         }
@@ -266,21 +295,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         html += `</div>`;
     }
     
-    // Citations count for desktop
-    html += `<div class="mt-4 text-sm text-gray-600 text-center">`;
-    if (allReferences && allReferences.length > 0) {
-        // Show total counts and pagination info for individual papers
-        html += dois.map((doi, index) => {
-            const ref = allReferences[index];
-            const totalCount = ref?.totalCount || refCounts[index];
-            const hasMore = ref?.hasMore || false;
-            return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}${hasMore ? ' (showing first 20)' : ''}`;
-        }).join(' • ');
-    } else {
-        // Fallback to original display
-        html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
-    }
-    html += `</div>`;
+
     html += `</div>`; // Close desktop view
     
     resultsDiv.innerHTML = html;
