@@ -75,8 +75,12 @@ async function getCitingPubs(doi) {
     }
 
     try {
-        const baseUrl = 'https://opencitations.net/index/coci/api/v1/citations/';
-        const response = await rateLimiter.add(() => fetch(`${baseUrl}${encodeURIComponent(doi)}`));
+        // Using a CORS proxy to bypass browser restrictions for OpenCitations API
+        const targetUrl = `https://opencitations.net/index/coci/api/v1/citations/${encodeURIComponent(doi)}`;
+        // Using AllOrigins as a public CORS proxy. Consider hosting your own for production.
+        const proxyBase = 'https://api.allorigins.win/raw?url=';
+        const proxiedUrl = `${proxyBase}${encodeURIComponent(targetUrl)}`;
+        const response = await rateLimiter.add(() => fetch(proxiedUrl));
         
         if (!response.ok) {
             console.error(`OpenCitations API error: ${response.status} for DOI ${doi}`);
@@ -87,7 +91,35 @@ async function getCitingPubs(doi) {
             };
         }
 
-        const data = await response.json();
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (jsonError) {
+            console.log('DEBUG: Entered jsonError catch block.'); // Simple entry log
+            // Temporarily commenting out the more complex logic to isolate the issue
+            // console.error(`Failed to parse JSON response from OpenCitations (via proxy) for DOI ${doi}. Status: ${response.status}. Raw response:`, responseText);
+            // console.error('JSON parsing error details:', jsonError);
+            // console.log(`Type of responseText: ${typeof responseText}, Value:`, responseText);
+
+            let userMessage = `DEBUG: JSON parsing failed. Raw response was: ${responseText}. Check console for details.`;
+
+            // if (typeof responseText === 'string') {
+            //     if (responseText.includes("HTTP status code 500")) {
+            //         userMessage = `OpenCitations API returned an internal server error (500) for DOI ${doi}. This is an issue with the API itself. Raw error: ${responseText}`;
+            //     } else {
+            //          userMessage = `Failed to parse response from OpenCitations. Server returned non-JSON data (Proxy Status: ${response.status}). Raw: ${responseText}`;
+            //     }
+            // } else {
+            //     userMessage = `Received an unexpected non-string response from the server (Proxy Status: ${response.status}). Type: ${typeof responseText}. Check console.`;
+            //     console.error("responseText was not a string. This is unexpected.", responseText);
+            // }
+            return {
+                status: 'API_ERROR',
+                data: [],
+                message: userMessage
+            };
+        }
         console.log(`getCitingPubs: Fetched citations from OpenCitations API for DOI: ${doi}, Status: ${response.status}, Count: ${data.length}`);
         if (data.length > 0) {
             // Transform the data to use the citing DOI as our reference
@@ -119,16 +151,34 @@ async function getCitingPubs(doi) {
                 status: 'SUCCESS',
                 data: transformedData
             };
-        }
+        } else {
+            // OpenCitations returned an empty array for citations
+            console.log(`getCitingPubs: OpenCitations returned no citations for DOI: ${doi}`);
+            
+            // "Cache" this empty result to prevent repeated API calls for known empty sets
+            if (title && title !== "Unknown Title") {
+                const existingData = getCachedData(doi) || {};
+                setCachedData(doi, { ...existingData, doi, 'cited-by': [] });
+            } else {
+                setCachedData(doi, { doi, 'cited-by': [] });
+            }
 
-        // No citations found with any format
-        console.log(`No citation data available for arXiv paper: ${arxivMatch[1]}`);
-        
-        return {
-            status: 'NO_DATA',
-            data: [],
-            message: `OpenCitations has no data for this arXiv paper (${arxivMatch[1]}), likely because it has not been published in a peer-reviewed venue. Try searching on <a href=https://scholar.google.com>Google Scholar</a> instead.`
-        };
+            // Specific handling for arXiv if it was one (arxivMatch is from line 41)
+            if (arxivMatch) { // Check if arxivMatch is not null
+                console.log(`No citation data available for arXiv paper: ${arxivMatch[1]}`);
+                return {
+                    status: 'NO_DATA',
+                    data: [],
+                    message: `OpenCitations has no data for this arXiv paper (${arxivMatch[1]}), likely because it has not been published in a peer-reviewed venue. Try searching on <a href=https://scholar.google.com>Google Scholar</a> instead.`
+                };
+            } else {
+                // Generic NO_DATA for non-arXiv DOIs if OpenCitations returns empty
+                return {
+                    status: 'NO_DATA',
+                    data: []
+                };
+            }
+        }
     } catch (error) {
         console.error('Error fetching citations:', error);
         return {
