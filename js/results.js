@@ -208,7 +208,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     }
 
     // Add "Load More" button for mobile if there are more results
-    const shouldShowLoadMore = totalReferences > itemsPerPage || (allReferences && allReferences.some(ref => ref?.hasMore));
+    const shouldShowLoadMore = (totalReferences > itemsPerPage || (allReferences && allReferences.some(ref => ref?.hasMore))) && totalReferences > 20;
     if (shouldShowLoadMore) {
         let buttonText = 'Load More';
         if (allReferences && allReferences.length === 1 && allReferences[0]?.hasMore) {
@@ -244,7 +244,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <th class="w-[85%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
                         <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
                         <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
-                        <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add</th>
+                        <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add to search</th>
                     </tr>
                 </thead>
                 <tbody id="results-tbody">`;
