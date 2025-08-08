@@ -1,19 +1,19 @@
 /* Alternating row colors for results table */
 #results-table tbody tr:nth-child(odd) {
-    background-color: white;
+    background-color: white !important;
 }
 
 #results-table tbody tr:nth-child(even) {
-    background-color: #f8f9fa; /* Light gray background */
+    background-color: #f8f9fa !important; /* Light gray background */
 }
 
 /* Mobile table alternating colors */
-.sm\\:hidden table:nth-child(odd) {
-    background-color: white;
+#mobile-results-container table:nth-child(odd) {
+    background-color: white !important;
 }
 
-.sm\\:hidden table:nth-child(even) {
-    background-color: #f8f9fa; /* Light gray background */
+#mobile-results-container table:nth-child(even) {
+    background-color: #f8f9fa !important; /* Light gray background */
 }
 
 @media screen and (max-width: 600px) {

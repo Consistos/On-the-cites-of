@@ -180,10 +180,12 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     } else {
         // Create a container for mobile results
         html += `<div id="mobile-results-container">`;
+        let cardIndex = 0;
         for (const [title, dois] of Object.entries(groupedReferences)) {
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
+            const cardBgClass = cardIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
             html += `
-                <table class="w-full mb-4 border border-gray-300">
+                <table class="w-full mb-4 border border-gray-300 ${cardBgClass}">
                     <tr>
                         <td class="px-4 py-2">
                             <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
@@ -209,6 +211,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     </tr>
                 </table>
             `;
+            cardIndex++;
         }
         html += `</div>`; // Close mobile-results-container
     }
@@ -253,9 +256,11 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 </thead>
                 <tbody id="results-tbody">`;
 
+        let rowIndex = 0;
         for (const [title, dois] of Object.entries(groupedReferences)) {
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
-            html += `<tr>
+            const rowBgClass = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+            html += `<tr class="${rowBgClass}">
                 <td class="break-words py-2 border border-gray-300 p-2">
                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
                 </td>
@@ -279,6 +284,8 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     </button>
                 </td>
             </tr>`;
+            rowIndex++;
+        }
         }
 
         html += `</tbody>
@@ -340,10 +347,14 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 if (isMobile) {
                     // For mobile view, append new cards
                     const mobileResultsContainer = document.getElementById('mobile-results-container');
+                    const currentCardCount = mobileResultsContainer.children.length;
+                    let cardIndex = 0;
                     for (const [title, dois] of Object.entries(groupedReferences)) {
                         const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                         const card = document.createElement('table');
-                        card.className = 'w-full mb-4 border border-gray-300';
+                        const totalCardIndex = currentCardCount + cardIndex;
+                        const cardBgClass = totalCardIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        card.className = `w-full mb-4 border border-gray-300 ${cardBgClass}`;
                         card.innerHTML = `
                             <tr>
                                 <td class="px-4 py-2">
@@ -370,13 +381,19 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                             </tr>
                         `;
                         mobileResultsContainer.appendChild(card);
+                        cardIndex++;
                     }
                 } else {
                     // For desktop view, append to table
                     const tbody = document.getElementById('results-tbody');
+                    const currentRowCount = tbody.children.length;
+                    let rowIndex = 0;
                     for (const [title, dois] of Object.entries(groupedReferences)) {
                         const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                         const row = document.createElement('tr');
+                        const totalRowIndex = currentRowCount + rowIndex;
+                        const rowBgClass = totalRowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        row.className = rowBgClass;
                         row.innerHTML = `
                             <td class="break-words py-2 border border-gray-300 p-2">
                                 <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
@@ -402,6 +419,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                             </td>
                         `;
                         tbody.appendChild(row);
+                        rowIndex++;
                     }
                 }
 
@@ -430,10 +448,14 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         if (isMobile) {
             // For mobile view, append new cards
             const mobileResultsContainer = document.getElementById('mobile-results-container');
+            const currentCardCount = mobileResultsContainer.children.length;
+            let cardIndex = 0;
             for (const [title, dois] of Object.entries(groupedReferences)) {
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                 const card = document.createElement('table');
-                card.className = 'w-full mb-4 border border-gray-300';
+                const totalCardIndex = currentCardCount + cardIndex;
+                const cardBgClass = totalCardIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                card.className = `w-full mb-4 border border-gray-300 ${cardBgClass}`;
                 card.innerHTML = `
                     <tr>
                         <td class="px-4 py-2">
@@ -460,13 +482,19 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     </tr>
                 `;
                 mobileResultsContainer.appendChild(card);
+                cardIndex++;
             }
         } else {
             // For desktop view, append to table
             const tbody = document.getElementById('results-tbody');
+            const currentRowCount = tbody.children.length;
+            let rowIndex = 0;
             for (const [title, dois] of Object.entries(groupedReferences)) {
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                 const row = document.createElement('tr');
+                const totalRowIndex = currentRowCount + rowIndex;
+                const rowBgClass = totalRowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                row.className = rowBgClass;
                 row.innerHTML = `
                     <td class="break-words py-2 border border-gray-300 p-2">
                         <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
@@ -492,6 +520,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     </td>
                 `;
                 tbody.appendChild(row);
+                rowIndex++;
             }
         }
 
