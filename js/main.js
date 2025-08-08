@@ -113,7 +113,6 @@ async function initialisePage() {
     try {
         let index = 1;
         const dois = [];
-        const inputValues = [];
         
         // Check for both doi and input parameters
         let doi = getUrlParameter(`doi${index}`);
@@ -140,21 +139,17 @@ async function initialisePage() {
             
             // Process URL parameters if they exist
             while (doi || inputValue) {
-                let valueToProcess = doi || inputValue;
-                let displayValue = valueToProcess;
+                // Add new input if needed
+                if (index > existingInputs.length) {
+                    addInput();
+                    existingInputs = container.querySelectorAll('.input-group');
+                }
+                
+                const textarea = existingInputs[index - 1].querySelector('.article-input');
                 
                 if (doi) {
-                    // It's a DOI parameter
+                    // It's a DOI parameter - handle as before
                     dois.push(doi);
-                    
-                    // Add new input if needed
-                    if (index > existingInputs.length) {
-                        addInput();
-                        existingInputs = container.querySelectorAll('.input-group');
-                    }
-                    
-                    // Update the input value
-                    const textarea = existingInputs[index - 1].querySelector('.article-input');
                     
                     // Fetch cached data once
                     const cachedData = getCachedData(doi);
@@ -174,35 +169,13 @@ async function initialisePage() {
                         console.log(`Citations already cached for DOI: ${doi}, skipping pre-caching in initialisePage`);
                     }
                     
-                    displayValue = title && title !== "Unknown Title" ? title : doi;
+                    textarea.value = title && title !== "Unknown Title" ? title : doi;
                 } else if (inputValue) {
-                    // It's an input parameter (could be title, DOI, or other identifier)
-                    inputValues.push(inputValue);
-                    
-                    // Add new input if needed
-                    if (index > existingInputs.length) {
-                        addInput();
-                        existingInputs = container.querySelectorAll('.input-group');
-                    }
-                    
-                    displayValue = decodeURIComponent(inputValue);
-                    
-                    // Try to get the DOI for this input for the search
-                    try {
-                        // Create a temporary input-like object for getDOI
-                        const tempInput = { value: displayValue };
-                        const resolvedDoi = await getDOI(tempInput);
-                        if (resolvedDoi) {
-                            dois.push(resolvedDoi);
-                        }
-                    } catch (error) {
-                        console.error('Error resolving DOI for input:', displayValue, error);
-                    }
+                    // It's an input parameter - just display it without resolving DOI
+                    // DOI resolution will happen when the user triggers a search
+                    textarea.value = decodeURIComponent(inputValue);
                 }
                 
-                // Update the textarea with the display value
-                const textarea = existingInputs[index - 1].querySelector('.article-input');
-                textarea.value = displayValue;
                 updateClearButtonVisibility(textarea);
                 
                 index++;
