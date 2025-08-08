@@ -94,13 +94,19 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
 
         if (!response.ok) {
             console.error(`OpenCitations API error: ${response.status} for DOI ${doi}`);
+            let errorMessage = `Failed to fetch data from OpenCitations (Status: ${response.status})`;
+
+            if (response.status === 500) {
+                errorMessage = `CORS proxy service is temporarily unavailable. This is a known issue with the AllOrigins service. Please try again later or contact support.`;
+            }
+
             return {
                 status: 'API_ERROR',
                 data: [],
                 totalCount: 0,
                 hasMore: false,
                 nextOffset: null,
-                message: `Failed to fetch data from OpenCitations (Status: ${response.status})`
+                message: errorMessage
             };
         }
 
@@ -210,13 +216,19 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
         }
     } catch (error) {
         console.error('Error fetching citations:', error);
+        let errorMessage = 'Failed to connect to OpenCitations API. Please try again later.';
+
+        if (error.message.includes('NetworkError') || error.message.includes('CORS')) {
+            errorMessage = 'CORS proxy service is experiencing issues. This is a temporary problem with the AllOrigins service. Please try again in a few minutes.';
+        }
+
         return {
             status: 'API_ERROR',
             data: [],
             totalCount: 0,
             hasMore: false,
             nextOffset: null,
-            message: 'Failed to connect to OpenCitations API. Please try again later.'
+            message: errorMessage
         };
     }
 }
