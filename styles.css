@@ -1,3 +1,21 @@
+/* Alternating row colors for results table */
+#results-table tbody tr:nth-child(odd) {
+    background-color: white;
+}
+
+#results-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa; /* Light gray background */
+}
+
+/* Mobile table alternating colors */
+.sm\\:hidden table:nth-child(odd) {
+    background-color: white;
+}
+
+.sm\\:hidden table:nth-child(even) {
+    background-color: #f8f9fa; /* Light gray background */
+}
+
 @media screen and (max-width: 600px) {
     .responsive-input-group {
         display: flex;
