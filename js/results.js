@@ -43,7 +43,7 @@ async function findCommonCitations(initialDois = null) {
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'absolute top-0 left-0 w-full h-full flex items-center justify-center bg-white bg-opacity-80 z-10';
         loadingDiv.innerHTML = '<div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div><div class="mt-2">Loading citations...</div></div>';
-        
+
         // Only add loading overlay if results exist
         if (resultsDiv.children.length > 0) {
             resultsDiv.style.position = 'relative';
@@ -107,19 +107,19 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     // Deduplicate references first
     const uniqueReferences = Array.from(new Set(commonReferences.map(ref => ref.citing)))
         .map(citing => commonReferences.find(ref => ref.citing === citing));
-    
+
     // Store references in a global variable for lazy loading
     window.allReferences = uniqueReferences;
     window.currentPage = 1;
     const itemsPerPage = 20;
 
-    
+
     // Function to render a batch of references
     async function renderReferences(start, end) {
         const batch = uniqueReferences.slice(start, end);
         const titlePromises = batch.map(ref => getTitle(ref.citing));
         const titles = await Promise.all(titlePromises);
-        
+
         // Group references by title
         const groupedReferences = {};
         batch.forEach((ref, index) => {
@@ -131,7 +131,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 groupedReferences[title].push(ref.citing);
             }
         });
-        
+
         return { groupedReferences, validReferencesCount: Object.keys(groupedReferences).length };
     }
 
@@ -140,7 +140,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     const totalReferences = uniqueReferences.length;
 
     let html = '';
-    
+
     // Show total citation counts at the top
     html += `<div class="text-center mb-6 mt-4">`;
     if (allReferences && allReferences.length > 0) {
@@ -153,12 +153,10 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}`;
         }).join(' • ');
         html += `</div>`;
-        
+
         // Show pagination info if applicable
         const hasAnyMore = allReferences.some(ref => ref?.hasMore);
-        if (hasAnyMore) {
-            html += `<div class="text-sm text-gray-600">Showing first 20 results</div>`;
-        }
+
     } else {
         // Fallback to original display
         html += `<div class="text-lg font-medium">`;
@@ -170,7 +168,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     // Mobile view
     html += `<div class="sm:hidden px-4">`;
     // Results section for mobile
-    html += `<h2 class="text-lg text-center mb-4">${totalReferences} result${totalReferences === 1 ? '' : 's'} displayed</h2>`;
+    html += `<h2 class="text-lg text-center mb-4">${totalReferences} result${totalReferences === 1 ? '' : 's'}</h2>`;
     if (validReferencesCount === 0) {
         html += `<p>No results with available titles.</p>`;
     } else {
@@ -189,12 +187,15 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <td class="px-4 py-2 border-t border-gray-300">
                             <div class="flex justify-between items-center">
                                 <a href="${scholarUrl}" target="_blank" class="hover:underline">Google Scholar</a>
-                                <div class="flex items-center">
-                                    <span class="mr-2 text-gray-600">DOI</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-gray-600">DOI</span>
                                     <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
                                         </svg>
+                                    </button>
+                                    <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                                        Add
                                     </button>
                                 </div>
                             </div>
@@ -205,7 +206,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         }
         html += `</div>`; // Close mobile-results-container
     }
-    
+
     // Add "Load More" button for mobile if there are more results
     const shouldShowLoadMore = totalReferences > itemsPerPage || (allReferences && allReferences.some(ref => ref?.hasMore));
     if (shouldShowLoadMore) {
@@ -231,7 +232,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     html += `<div class="hidden sm:block">`;
     // Display number of valid references above the table
     html += `<p class="text-center mb-3">${totalReferences} result${totalReferences === 1 ? '' : 's'} displayed</p>`;
-    
+
     if (validReferencesCount === 0 && commonReferences.length > 0) {
         html += `<p class="text-center">Citations in common found, but no titles available.</p>`;
     } else {
@@ -240,13 +241,14 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             <table class="w-full text-sm border-collapse border border-gray-300 mt-8" id="results-table">
                 <thead bg-gray-50>
                     <tr>
-                        <th class="w-[90%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
+                        <th class="w-[85%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
                         <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
                         <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
+                        <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add</th>
                     </tr>
                 </thead>
                 <tbody id="results-tbody">`;
-        
+
         for (const [title, dois] of Object.entries(groupedReferences)) {
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
             html += `<tr>
@@ -267,9 +269,14 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         ${dois.length > 1 ? `<div class="text-sm text-gray-600">${dois.length} DOIs</div>` : ''}
                     </div>
                 </td>
+                <td class="break-words py-2 text-center border border-gray-300 p-2">
+                    <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                        +
+                    </button>
+                </td>
             </tr>`;
         }
-        
+
         html += `</tbody>
             </table>`;
 
@@ -291,13 +298,13 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     </button>
                 </div>`;
         }
-        
+
         html += `</div>`;
     }
-    
+
 
     html += `</div>`; // Close desktop view
-    
+
     resultsDiv.innerHTML = html;
 
     // Add event listeners for "Load More" buttons
@@ -309,22 +316,22 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         if (dois.length === 1 && allReferences && allReferences[0]?.hasMore) {
             const doi = dois[0];
             const nextOffset = allReferences[0].nextOffset;
-            
+
             // Load more citations from API
             const moreResults = await getCitingPubs(doi, nextOffset);
             if (moreResults.status === 'SUCCESS') {
                 // Add new citations to the existing results
                 uniqueReferences.push(...moreResults.data);
                 window.allReferences = uniqueReferences;
-                
+
                 // Update allReferences with new pagination info
                 allReferences[0] = moreResults;
-                
+
                 // Render the new batch
                 const start = window.currentPage * itemsPerPage;
                 const end = start + itemsPerPage;
                 const { groupedReferences } = await renderReferences(start, end);
-                
+
                 // Update UI with new results
                 if (isMobile) {
                     // For mobile view, append new cards
@@ -343,12 +350,15 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                                 <td class="px-4 py-2 border-t border-gray-300">
                                     <div class="flex justify-between items-center">
                                         <a href="${scholarUrl}" target="_blank" class="hover:underline">Google Scholar</a>
-                                        <div class="flex items-center">
-                                            <span class="mr-2 text-gray-600">DOI</span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-gray-600">DOI</span>
                                             <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
                                                 </svg>
+                                            </button>
+                                            <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                                                Add
                                             </button>
                                         </div>
                                     </div>
@@ -381,13 +391,18 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                                     ${dois.length > 1 ? `<div class="text-sm text-gray-600">${dois.length} DOIs</div>` : ''}
                                 </div>
                             </td>
+                            <td class="break-words py-2 text-center border border-gray-300 p-2">
+                                <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                                    +
+                                </button>
+                            </td>
                         `;
                         tbody.appendChild(row);
                     }
                 }
-                
+
                 window.currentPage++;
-                
+
                 // Update button text and hide if no more results
                 if (!moreResults.hasMore) {
                     if (loadMoreButton) loadMoreButton.style.display = 'none';
@@ -398,11 +413,11 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     if (loadMoreButton) loadMoreButton.textContent = `Load More (${nextBatch} more)`;
                     if (loadMoreMobileButton) loadMoreMobileButton.textContent = `Load More (${nextBatch} more)`;
                 }
-                
+
                 return;
             }
         }
-        
+
         // Original pagination logic for common citations
         const start = window.currentPage * itemsPerPage;
         const end = start + itemsPerPage;
@@ -425,12 +440,15 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <td class="px-4 py-2 border-t border-gray-300">
                             <div class="flex justify-between items-center">
                                 <a href="${scholarUrl}" target="_blank" class="hover:underline">Google Scholar</a>
-                                <div class="flex items-center">
-                                    <span class="mr-2 text-gray-600">DOI</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-gray-600">DOI</span>
                                     <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
                                         </svg>
+                                    </button>
+                                    <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                                        Add
                                     </button>
                                 </div>
                             </div>
@@ -462,6 +480,11 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                             </button>
                             ${dois.length > 1 ? `<div class="text-sm text-gray-600">${dois.length} DOIs</div>` : ''}
                         </div>
+                    </td>
+                    <td class="break-words py-2 text-center border border-gray-300 p-2">
+                        <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                            +
+                        </button>
                     </td>
                 `;
                 tbody.appendChild(row);

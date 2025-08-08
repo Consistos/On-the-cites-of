@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Add Buttons</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <h1 class="text-2xl font-bold mb-4">Test Add Publication Buttons</h1>
+    
+    <!-- Desktop Table Test -->
+    <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-2">Desktop View</h2>
+        <table class="w-full text-sm border-collapse border border-gray-300">
+            <thead>
+                <tr>
+                    <th class="w-[85%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
+                    <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
+                    <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
+                    <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="break-words py-2 border border-gray-300 p-2">
+                        <a href="#" class="hover:underline">Test Publication Title</a>
+                    </td>
+                    <td class="break-words py-2 text-center border border-gray-300 p-2">
+                        <a href="#" class="hover:underline">🔗</a>
+                    </td>
+                    <td class="break-words py-2 text-center border border-gray-300 p-2">
+                        <button onclick="alert('Copy DOI')" class="text-gray-600 hover:text-blue-600">📋</button>
+                    </td>
+                    <td class="break-words py-2 text-center border border-gray-300 p-2">
+                        <button data-title="Test Publication Title" data-doi="10.1000/test" onclick="alert('Add: ' + this.dataset.title)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                            +
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile View Test -->
+    <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-2">Mobile View</h2>
+        <table class="w-full mb-4 border border-gray-300">
+            <tr>
+                <td class="px-4 py-2">
+                    <a href="#" class="hover:underline block mb-2">Test Publication Title</a>
+                </td>
+            </tr>
+            <tr>
+                <td class="px-4 py-2 border-t border-gray-300">
+                    <div class="flex justify-between items-center">
+                        <a href="#" class="hover:underline">Google Scholar</a>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-600">DOI</span>
+                            <button onclick="alert('Copy DOI')" class="text-gray-600 hover:text-blue-600">📋</button>
+                            <button data-title="Test Publication Title" data-doi="10.1000/test" onclick="alert('Add: ' + this.dataset.title)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
