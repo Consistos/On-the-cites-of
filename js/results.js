@@ -154,7 +154,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     // Show results count at the top
     html += `<div class="text-center mb-6 mt-4">`;
     if (actualTotalCount > totalReferences) {
-        html += `<div class="text-lg font-medium">${actualTotalCount} result${actualTotalCount === 1 ? '' : 's'} (showing first ${totalReferences})</div>`;
+        html += `<div class="text-lg font-medium">${actualTotalCount} result${actualTotalCount === 1 ? '' : 's'}</div>`;
     } else {
         html += `<div class="text-lg font-medium">${totalReferences} result${totalReferences === 1 ? '' : 's'}</div>`;
     }
@@ -214,7 +214,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     }
 
     // Add "Load More" button for mobile if there are more results
-    const shouldShowLoadMore = (totalReferences > itemsPerPage || (allReferences && allReferences.some(ref => ref?.hasMore))) && totalReferences > 20;
+    const shouldShowLoadMore = (totalReferences > itemsPerPage) || (allReferences && allReferences.some(ref => ref?.hasMore));
     if (shouldShowLoadMore) {
         let buttonText = 'Load More';
         if (allReferences && allReferences.length === 1 && allReferences[0]?.hasMore) {
