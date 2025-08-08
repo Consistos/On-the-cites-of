@@ -53,7 +53,11 @@ async function findCommonCitations(initialDois = null) {
         }
 
         // Get citing publications for each DOI
-        const citingPublications = await Promise.all(dois.map(doi => getCitingPubs(doi)));
+        const citingPublicationsResponses = await Promise.all(dois.map(doi => getCitingPubs(doi)));
+
+        // Extract the actual publication data and keep API response info
+        const citingPublications = citingPublicationsResponses.map(response => response?.data || []);
+        const allReferences = citingPublicationsResponses;
 
         // Find common citations
         const commonReferences = [];
@@ -79,8 +83,8 @@ async function findCommonCitations(initialDois = null) {
         const commonDois = commonReferences.map(ref => ref.citing);
         await preCacheCitations(commonDois);
 
-        // Display results
-        await displayResults(commonReferences, dois, refCounts);
+        // Display results with API response data
+        await displayResults(commonReferences, dois, refCounts, allReferences);
 
     } catch (error) {
         console.error('Error in findCommonCitations:', error);
@@ -139,26 +143,34 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     const { groupedReferences, validReferencesCount } = await renderReferences(0, itemsPerPage);
     const totalReferences = uniqueReferences.length;
 
+    // Calculate actual total count - use API totalCount if available for single paper searches
+    let actualTotalCount = totalReferences;
+    if (allReferences && allReferences.length === 1 && allReferences[0]?.totalCount) {
+        actualTotalCount = allReferences[0].totalCount;
+    }
+
     let html = '';
 
     // Show results count at the top
     html += `<div class="text-center mb-6 mt-4">`;
-    html += `<div class="text-lg font-medium">${totalReferences} result${totalReferences === 1 ? '' : 's'}</div>`;
+    if (actualTotalCount > totalReferences) {
+        html += `<div class="text-lg font-medium">${actualTotalCount} result${actualTotalCount === 1 ? '' : 's'} (showing first ${totalReferences})</div>`;
+    } else {
+        html += `<div class="text-lg font-medium">${totalReferences} result${totalReferences === 1 ? '' : 's'}</div>`;
+    }
 
     // Show citation counts for each entry below
-    if (allReferences && allReferences.length > 0) {
-        html += `<div class="text-sm font-small">`;
-        html += dois.map((doi, index) => {
+    html += `<div class="text-sm font-small">`;
+    html += dois.map((doi, index) => {
+        if (allReferences && allReferences[index]) {
             const ref = allReferences[index];
-            const totalCount = ref?.totalCount || refCounts[index];
+            const totalCount = ref?.totalCount || ref?.data?.length || 0;
             return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}`;
-        }).join(' • ');
-        html += `</div>`;
-    } else {
-        html += `<div class="text-lg font-medium">`;
-        html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
-        html += `</div>`;
-    }
+        } else {
+            return `Citations found for entry ${index + 1}`;
+        }
+    }).join(' • ');
+    html += `</div>`;
     html += `</div>`;
 
     // Mobile view
