@@ -87,8 +87,8 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
     try {
         // Using a CORS proxy to bypass browser restrictions for OpenCitations API
         const targetUrl = `https://opencitations.net/index/coci/api/v1/citations/${encodeURIComponent(doi)}`;
-        // Using AllOrigins as a public CORS proxy. Consider hosting your own for production.
-        const proxyBase = 'https://api.allorigins.win/raw?url=';
+        // Using corsproxy.io as a public CORS proxy. Consider hosting your own for production.
+        const proxyBase = 'https://corsproxy.io/?';
         const proxiedUrl = `${proxyBase}${encodeURIComponent(targetUrl)}`;
         const response = await rateLimiter.add(() => fetch(proxiedUrl));
 
@@ -96,8 +96,8 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
             console.error(`OpenCitations API error: ${response.status} for DOI ${doi}`);
             let errorMessage = `Failed to fetch data from OpenCitations (Status: ${response.status})`;
 
-            if (response.status === 500) {
-                errorMessage = `CORS proxy service is temporarily unavailable. This is a known issue with the AllOrigins service. Please try again later or contact support.`;
+            if (response.status === 500 || response.status === 520 || response.status === 522) {
+                errorMessage = `CORS proxy service is temporarily unavailable. This is a known issue with the proxy service. Please try again later.`;
             }
 
             return {
@@ -219,7 +219,7 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
         let errorMessage = 'Failed to connect to OpenCitations API. Please try again later.';
 
         if (error.message.includes('NetworkError') || error.message.includes('CORS')) {
-            errorMessage = 'CORS proxy service is experiencing issues. This is a temporary problem with the AllOrigins service. Please try again in a few minutes.';
+            errorMessage = 'CORS proxy service is experiencing issues. This is a temporary problem with the proxy service. Please try again in a few minutes.';
         }
 
         return {
