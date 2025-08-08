@@ -7,13 +7,9 @@
     background-color: #f8f9fa !important; /* Light gray background */
 }
 
-/* Mobile table alternating colors */
-#mobile-results-container table:nth-child(odd) {
+/* Mobile table - all white backgrounds */
+#mobile-results-container table {
     background-color: white !important;
-}
-
-#mobile-results-container table:nth-child(even) {
-    background-color: #f8f9fa !important; /* Light gray background */
 }
 
 @media screen and (max-width: 600px) {
