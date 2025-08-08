@@ -66,9 +66,8 @@ async function findCommonCitations(initialDois = null) {
         // Pre-fetch and cache references for all DOIs
         await preCacheCitations(dois);
 
-        // Get references for all DOIs, but only fetch each reference once
-        const uniqueDois = [...new Set(dois)];
-        const allReferences = await Promise.all(uniqueDois.map(async doi => {
+        // Get references for all DOIs
+        const allReferences = await Promise.all(dois.map(async doi => {
             console.log(`Getting references for DOI: ${doi}`);
             return getCitingPubs(doi);
         }));
@@ -85,14 +84,27 @@ async function findCommonCitations(initialDois = null) {
             return;
         }
 
+        // Debug: Log the references data
+        console.log('All references data:', allReferences.map((ref, i) => ({
+            doi: dois[i],
+            status: ref.status,
+            dataLength: ref.data?.length || 0,
+            firstFewCitations: ref.data?.slice(0, 3).map(r => r.citing) || []
+        })));
+
         const commonReferences = allReferences.reduce((common, ref, index) => {
-            if (index === 0) return ref.data;
+            if (index === 0) return ref.data || [];
             return common.filter(ref1 => {
-                return ref.data.some(ref2 => {
+                return (ref.data || []).some(ref2 => {
                     return ref1.citing === ref2.citing;
                 });
             });
         }, []);
+
+        console.log(`Found ${commonReferences.length} common citations`);
+        if (commonReferences.length > 0) {
+            console.log('First few common citations:', commonReferences.slice(0, 3).map(r => r.citing));
+        }
 
         // Create a refCounts Map for compatibility with displayResults
         const refCounts = new Map();
