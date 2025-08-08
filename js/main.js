@@ -94,7 +94,10 @@ async function findCommonCitations(initialDois = null) {
             });
         }, []);
 
-        await displayResults(commonReferences, dois, allReferences.map(ref => ref.totalCount || ref.data.length), allReferences);
+        // Create a refCounts Map for compatibility with displayResults
+        const refCounts = new Map();
+        
+        await displayResults(commonReferences, dois, refCounts, allReferences);
     } catch (error) {
         resultsDiv.innerHTML = '<div class="text-center text-gray-600">An error occurred: ' + error.message + '</div>';
         console.error('Error in findCommonCitations:', error);
