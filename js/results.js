@@ -286,7 +286,6 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             </tr>`;
             rowIndex++;
         }
-        }
 
         html += `</tbody>
             </table>`;
