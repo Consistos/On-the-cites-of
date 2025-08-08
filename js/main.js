@@ -66,10 +66,27 @@ async function findCommonCitations(initialDois = null) {
         // Pre-fetch and cache references for all DOIs
         await preCacheCitations(dois);
 
-        // Get references for all DOIs
+        // Get ALL references for all DOIs (not just first page)
         const allReferences = await Promise.all(dois.map(async doi => {
             console.log(`Getting references for DOI: ${doi}`);
-            return getCitingPubs(doi);
+            
+            // First ensure data is cached
+            await getCitingPubs(doi);
+            
+            // Then get all cached citations
+            const cachedData = getCachedData(doi);
+            if (cachedData && Array.isArray(cachedData['cited-by'])) {
+                return {
+                    status: 'SUCCESS',
+                    data: cachedData['cited-by'], // Return ALL citations, not paginated
+                    totalCount: cachedData['cited-by'].length,
+                    hasMore: false,
+                    nextOffset: null
+                };
+            } else {
+                // Fallback to regular API call if cache miss
+                return getCitingPubs(doi);
+            }
         }));
         
         // Check for API errors
@@ -89,6 +106,7 @@ async function findCommonCitations(initialDois = null) {
             doi: dois[i],
             status: ref.status,
             dataLength: ref.data?.length || 0,
+            totalCount: ref.totalCount || 0,
             firstFewCitations: ref.data?.slice(0, 3).map(r => r.citing) || []
         })));
 
