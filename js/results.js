@@ -141,13 +141,13 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 
     let html = '';
 
-    // Show total results count at the top
+    // Show results count at the top
     html += `<div class="text-center mb-6 mt-4">`;
-    html += `<div class="text-xl font-semibold mb-3">${totalReferences} total result${totalReferences === 1 ? '' : 's'}</div>`;
+    html += `<div class="text-lg font-medium">${totalReferences} result${totalReferences === 1 ? '' : 's'}</div>`;
 
     // Show citation counts for each entry below
     if (allReferences && allReferences.length > 0) {
-        html += `<div class="text-lg font-medium">`;
+        html += `<div class="text-sm font-small">`;
         html += dois.map((doi, index) => {
             const ref = allReferences[index];
             const totalCount = ref?.totalCount || refCounts[index];
