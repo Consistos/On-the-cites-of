@@ -17,7 +17,8 @@
             updateClearButtonVisibility,
             ensureRemoveButton,
             initialisePage,
-            addToPublicationSearch
+            addToPublicationSearch,
+            updateUrlWithCurrentInputs
         } from './js/main.js';
 
         // Export functions to window for onclick handlers
@@ -29,6 +30,7 @@
         window.updateClearButtonVisibility = updateClearButtonVisibility;
         window.ensureRemoveButton = ensureRemoveButton;
         window.addToPublicationSearch = addToPublicationSearch;
+        window.updateUrlWithCurrentInputs = updateUrlWithCurrentInputs;
 
         // Initialize page when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {

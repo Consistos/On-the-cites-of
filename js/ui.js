@@ -60,6 +60,11 @@ function removeInput(button) {
         inputGroup.remove();
         // Update remove buttons after removing input
         updateRemoveButtons();
+        
+        // Update URL parameters after removing input
+        updateUrlWithCurrentInputs().catch(error => {
+            console.error('Error updating URL after removing input:', error);
+        });
     }
 }
 
@@ -68,6 +73,11 @@ function clearInput(button) {
     textarea.value = '';
     textarea.focus();
     button.classList.add('hidden');
+    
+    // Update URL parameters after clearing input
+    updateUrlWithCurrentInputs().catch(error => {
+        console.error('Error updating URL after clearing input:', error);
+    });
 }
 
 function updateClearButtonVisibility(textarea) {
@@ -154,6 +164,50 @@ function addToPublicationSearch(title, doi) {
     
     // Show a brief confirmation message
     showError(`Added "${title}" to publication search`);
+    
+    // Update URL parameters with all current inputs (async, non-blocking)
+    updateUrlWithCurrentInputs().catch(error => {
+        console.error('Error updating URL:', error);
+    });
+}
+
+// Function to update URL parameters with all current input values
+async function updateUrlWithCurrentInputs() {
+    try {
+        const inputs = document.getElementsByClassName('article-input');
+        const nonEmptyInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
+        
+        if (nonEmptyInputs.length === 0) {
+            // Clear URL parameters if no inputs
+            const newUrl = window.location.pathname;
+            window.lastUrlUpdate = Date.now();
+            history.replaceState({}, '', newUrl);
+            return;
+        }
+        
+        // Update the URL with the input values
+        // Use 'input' parameters for titles and other identifiers, 'doi' for DOIs
+        const params = new URLSearchParams();
+        nonEmptyInputs.forEach((input, index) => {
+            const value = input.value.trim();
+            if (value) {
+                // Check if the value looks like a DOI
+                if (value.match(/^10\.\d+\/.+/)) {
+                    // It's already a DOI, use the existing format
+                    params.set(`doi${index + 1}`, value);
+                } else {
+                    // It's likely a title or other identifier, store as input
+                    params.set(`input${index + 1}`, encodeURIComponent(value));
+                }
+            }
+        });
+        
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.lastUrlUpdate = Date.now();
+        history.replaceState({}, '', newUrl);
+    } catch (error) {
+        console.error('Error updating URL with current inputs:', error);
+    }
 }
 
 export {
@@ -166,5 +220,6 @@ export {
     updateInputWithTitle,
     copyToClipboard,
     showError,
-    addToPublicationSearch
+    addToPublicationSearch,
+    updateUrlWithCurrentInputs
 };

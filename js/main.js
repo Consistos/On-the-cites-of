@@ -18,7 +18,8 @@ import {
     updateInputWithTitle,
     copyToClipboard,
     showError,
-    addToPublicationSearch
+    addToPublicationSearch,
+    updateUrlWithCurrentInputs
 } from './ui.js';
 import { displayResults } from './results.js';
 
@@ -112,7 +113,12 @@ async function initialisePage() {
     try {
         let index = 1;
         const dois = [];
+        const inputValues = [];
+        
+        // Check for both doi and input parameters
         let doi = getUrlParameter(`doi${index}`);
+        let inputValue = getUrlParameter(`input${index}`);
+        
         const container = document.getElementById('inputContainer');
         
         // Only initialize if we haven't already
@@ -133,40 +139,75 @@ async function initialisePage() {
             }
             
             // Process URL parameters if they exist
-            while (doi) {
-                dois.push(doi);
-                // Add new input if needed
-                if (index > existingInputs.length) {
-                    addInput();
-                    existingInputs = container.querySelectorAll('.input-group');
-                }
+            while (doi || inputValue) {
+                let valueToProcess = doi || inputValue;
+                let displayValue = valueToProcess;
                 
-                // Update the input value
-                const textarea = existingInputs[index - 1].querySelector('.article-input');
-                
-                // Fetch cached data once
-                const cachedData = getCachedData(doi);
-                let title;
-                if (!cachedData) {
-                    title = await getTitle(doi);
-                } else {
-                    title = cachedData.title;
-                }
+                if (doi) {
+                    // It's a DOI parameter
+                    dois.push(doi);
+                    
+                    // Add new input if needed
+                    if (index > existingInputs.length) {
+                        addInput();
+                        existingInputs = container.querySelectorAll('.input-group');
+                    }
+                    
+                    // Update the input value
+                    const textarea = existingInputs[index - 1].querySelector('.article-input');
+                    
+                    // Fetch cached data once
+                    const cachedData = getCachedData(doi);
+                    let title;
+                    if (!cachedData) {
+                        title = await getTitle(doi);
+                    } else {
+                        title = cachedData.title;
+                    }
 
+                    // Check if citations are already cached
+                    if (!cachedData?.['cited-by']) {
+                        // Pre-cache the citing publications if not cached
+                        console.log(`Pre-caching citations for DOI: ${doi} in initialisePage`);
+                        await getCitingPubs(doi);
+                    } else {
+                        console.log(`Citations already cached for DOI: ${doi}, skipping pre-caching in initialisePage`);
+                    }
+                    
+                    displayValue = title && title !== "Unknown Title" ? title : doi;
+                } else if (inputValue) {
+                    // It's an input parameter (could be title, DOI, or other identifier)
+                    inputValues.push(inputValue);
+                    
+                    // Add new input if needed
+                    if (index > existingInputs.length) {
+                        addInput();
+                        existingInputs = container.querySelectorAll('.input-group');
+                    }
+                    
+                    displayValue = decodeURIComponent(inputValue);
+                    
+                    // Try to get the DOI for this input for the search
+                    try {
+                        // Create a temporary input-like object for getDOI
+                        const tempInput = { value: displayValue };
+                        const resolvedDoi = await getDOI(tempInput);
+                        if (resolvedDoi) {
+                            dois.push(resolvedDoi);
+                        }
+                    } catch (error) {
+                        console.error('Error resolving DOI for input:', displayValue, error);
+                    }
+                }
                 
-                                // Check if citations are already cached
-                                // Check if citations are already cached
-                                if (!cachedData?.['cited-by']) {
-                                    // Pre-cache the citing publications if not cached
-                                    console.log(`Pre-caching citations for DOI: ${doi} in initialisePage`);
-                                    await getCitingPubs(doi);
-                                } else {
-                                    console.log(`Citations already cached for DOI: ${doi}, skipping pre-caching in initialisePage`);
-                                }
-                textarea.value = title && title !== "Unknown Title" ? title : doi;
+                // Update the textarea with the display value
+                const textarea = existingInputs[index - 1].querySelector('.article-input');
+                textarea.value = displayValue;
                 updateClearButtonVisibility(textarea);
+                
                 index++;
                 doi = getUrlParameter(`doi${index}`);
+                inputValue = getUrlParameter(`input${index}`);
             }
             
             // Update remove buttons after all inputs are set up
@@ -195,5 +236,6 @@ export {
     updateClearButtonVisibility,
     ensureRemoveButton,
     initialisePage,
-    addToPublicationSearch
+    addToPublicationSearch,
+    updateUrlWithCurrentInputs
 };
