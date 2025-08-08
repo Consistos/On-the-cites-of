@@ -141,24 +141,20 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 
     let html = '';
 
-    // Show total citation counts at the top
+    // Show total results count at the top
     html += `<div class="text-center mb-6 mt-4">`;
+    html += `<div class="text-xl font-semibold mb-3">${totalReferences} total result${totalReferences === 1 ? '' : 's'}</div>`;
+
+    // Show citation counts for each entry below
     if (allReferences && allReferences.length > 0) {
-        // Show total counts and pagination info for individual papers
-        html += `<div class="text-lg font-medium mb-2">`;
+        html += `<div class="text-lg font-medium">`;
         html += dois.map((doi, index) => {
             const ref = allReferences[index];
             const totalCount = ref?.totalCount || refCounts[index];
-            const hasMore = ref?.hasMore || false;
             return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}`;
         }).join(' • ');
         html += `</div>`;
-
-        // Show pagination info if applicable
-        const hasAnyMore = allReferences.some(ref => ref?.hasMore);
-
     } else {
-        // Fallback to original display
         html += `<div class="text-lg font-medium">`;
         html += dois.map((doi, index) => `${refCounts[index]} citation${refCounts[index] === 1 ? '' : 's'} found for entry ${index + 1}`).join(' • ');
         html += `</div>`;
@@ -167,8 +163,6 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 
     // Mobile view
     html += `<div class="sm:hidden px-4">`;
-    // Results section for mobile
-    html += `<h2 class="text-lg text-center mb-4">${totalReferences} result${totalReferences === 1 ? '' : 's'}</h2>`;
     if (validReferencesCount === 0) {
         html += `<p>No results with available titles.</p>`;
     } else {
@@ -230,8 +224,6 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 
     // Desktop view
     html += `<div class="hidden sm:block">`;
-    // Display number of valid references above the table
-    html += `<p class="text-center mb-3">${totalReferences} result${totalReferences === 1 ? '' : 's'} displayed</p>`;
 
     if (validReferencesCount === 0 && commonReferences.length > 0) {
         html += `<p class="text-center">Citations in common found, but no titles available.</p>`;
