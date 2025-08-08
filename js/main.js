@@ -17,7 +17,8 @@ import {
     ensureRemoveButton,
     updateInputWithTitle,
     copyToClipboard,
-    showError 
+    showError,
+    addToPublicationSearch
 } from './ui.js';
 import { displayResults } from './results.js';
 
@@ -193,5 +194,6 @@ export {
     findCommonCitations,
     updateClearButtonVisibility,
     ensureRemoveButton,
-    initialisePage
+    initialisePage,
+    addToPublicationSearch
 };

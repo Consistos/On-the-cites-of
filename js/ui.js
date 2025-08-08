@@ -133,6 +133,29 @@ function ensureRemoveButton(inputGroup) {
     }
 }
 
+// Function to add a publication to the search inputs
+function addToPublicationSearch(title, doi) {
+    // Add a new input field
+    addInput();
+    
+    // Get all input groups and find the last one (the newly added one)
+    const inputGroups = document.querySelectorAll('.input-group');
+    const lastInputGroup = inputGroups[inputGroups.length - 1];
+    const textarea = lastInputGroup.querySelector('.article-input');
+    
+    // Set the value to the title (preferred) or DOI if title is not available
+    textarea.value = title && title !== "Unknown Title" ? title : doi;
+    
+    // Update the clear button visibility
+    updateClearButtonVisibility(textarea);
+    
+    // Scroll to the new input to show it was added
+    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Show a brief confirmation message
+    showError(`Added "${title}" to publication search`);
+}
+
 export {
     addInput, 
     removeInput, 
@@ -142,5 +165,6 @@ export {
     ensureRemoveButton,
     updateInputWithTitle,
     copyToClipboard,
-    showError 
+    showError,
+    addToPublicationSearch
 };
