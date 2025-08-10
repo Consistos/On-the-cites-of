@@ -1,6 +1,7 @@
 import { getTitle, getCitingPubs, preCacheCitations } from './api.js';
 import { getDOI } from './identifiers.js';
 import { showError } from './ui.js';
+import { getCachedData, setCachedData } from './cache.js';
 
 async function findCommonCitations(initialDois = null) {
     try {
@@ -115,13 +116,28 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     // Fetch citation counts for ALL references upfront for proper sorting
     console.log('Fetching citation counts for all references...');
 
-    // Fetch citation counts from Crossref for ALL references
+    // Fetch citation counts from Crossref for ALL references (with caching)
     const citationCountPromises = uniqueReferences.map(async (ref) => {
+        const cacheKey = `citationCount_${ref.citing}`;
+        
+        // Check cache first
+        const cachedCount = getCachedData(cacheKey);
+        if (cachedCount !== null && cachedCount !== undefined) {
+            console.log(`Citation count cache HIT for ${ref.citing}: ${cachedCount}`);
+            return cachedCount;
+        }
+        
+        // Cache miss - fetch from API
+        console.log(`Citation count cache MISS for ${ref.citing}, fetching from API`);
         try {
             const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(ref.citing)}`);
             if (response.ok) {
                 const data = await response.json();
-                return data.message['is-referenced-by-count'] || 0;
+                const count = data.message['is-referenced-by-count'] || 0;
+                
+                // Cache the result
+                setCachedData(cacheKey, count);
+                return count;
             }
             return 0;
         } catch (error) {
