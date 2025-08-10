@@ -279,10 +279,10 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         if (allReferences && allReferences.length === 1 && allReferences[0]?.hasMore) {
             // Single paper with more citations
             const remaining = allReferences[0].totalCount - 20;
-            buttonText = `Load More (${Math.min(20, remaining)} more)`;
+            buttonText = `Load More (${Math.min(20, remaining)})`;
         } else if (window.allSortedReferences.length > itemsPerPage) {
             // Common citations pagination
-            buttonText = `Load More (${Math.min(itemsPerPage, window.allSortedReferences.length - itemsPerPage)} more)`;
+            buttonText = `Load More (${Math.min(itemsPerPage, window.allSortedReferences.length - itemsPerPage)})`;
         }
         html += `
             <div class="text-center mt-4 mb-4">
