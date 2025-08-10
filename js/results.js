@@ -226,7 +226,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <td class="px-4 py-2">
                             <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
                             <div class="text-sm text-gray-500 mt-1">
-                                <a href="https://scholar.google.com/scholar?q=${encodeURIComponent('"' + title + '"')}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600" title="View citing papers on Google Scholar">
+                                <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                                     ${citationCount} citation${citationCount === 1 ? '' : 's'}
                                 </a>
                             </div>
@@ -308,7 +308,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
                 </td>
                 <td class="break-words py-2 text-center border border-gray-300 p-2">
-                    <a href="https://scholar.google.com/scholar?q=${encodeURIComponent('"' + title + '"')}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600" title="View citing papers on Google Scholar">
+                    <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                         ${citationCount}
                     </a>
                 </td>
@@ -405,7 +405,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                                 <td class="px-4 py-2">
                                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
                                     <div class="text-sm text-gray-500 mt-1">
-                                        <a href="https://scholar.google.com/scholar?q=${encodeURIComponent('"' + title + '"')}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600" title="View citing papers on Google Scholar">
+                                        <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                                             ${citationCount} citation${citationCount === 1 ? '' : 's'}
                                         </a>
                                     </div>
@@ -450,7 +450,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                                 <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
                             </td>
                             <td class="break-words py-2 text-center border border-gray-300 p-2">
-                                <a href="https://scholar.google.com/scholar?q=${encodeURIComponent('"' + title + '"')}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600" title="View citing papers on Google Scholar">
+                                <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                                     ${citationCount}
                                 </a>
                             </td>
@@ -515,7 +515,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <td class="px-4 py-2">
                             <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
                             <div class="text-sm text-gray-500 mt-1">
-                                <a href="https://scholar.google.com/scholar?q=${encodeURIComponent('"' + title + '"')}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600" title="View citing papers on Google Scholar">
+                                <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                                     ${citationCount} citation${citationCount === 1 ? '' : 's'}
                                 </a>
                             </div>
@@ -560,7 +560,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
                     </td>
                     <td class="break-words py-2 text-center border border-gray-300 p-2">
-                        <a href="https://scholar.google.com/scholar?q=${encodeURIComponent('"' + title + '"')}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600" title="View citing papers on Google Scholar">
+                        <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                             ${citationCount}
                         </a>
                     </td>
