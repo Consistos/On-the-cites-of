@@ -225,7 +225,11 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     <tr>
                         <td class="px-4 py-2">
                             <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
-                            <div class="text-sm text-gray-500 mt-1">${citationCount} citation${citationCount === 1 ? '' : 's'}</div>
+                            <div class="text-sm text-gray-500 mt-1">
+                                <a href="https://scholar.google.com/scholar?cites=${encodeURIComponent(dois[0])}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600">
+                                    ${citationCount} citation${citationCount === 1 ? '' : 's'}
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     <tr>
@@ -304,7 +308,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
                 </td>
                 <td class="break-words py-2 text-center border border-gray-300 p-2">
-                    <span class="text-gray-700">${citationCount}</span>
+                    <a href="https://scholar.google.com/scholar?cites=${encodeURIComponent(dois[0])}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600">
+                        ${citationCount}
+                    </a>
                 </td>
                 <td class="break-words py-2 text-center border border-gray-300 p-2">
                     <a href="${scholarUrl}" target="_blank" class="hover:underline">🔗</a>
@@ -398,7 +404,11 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                             <tr>
                                 <td class="px-4 py-2">
                                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
-                                    <div class="text-sm text-gray-500 mt-1">${citationCount} citation${citationCount === 1 ? '' : 's'}</div>
+                                    <div class="text-sm text-gray-500 mt-1">
+                                        <a href="https://scholar.google.com/scholar?cites=${encodeURIComponent(dois[0])}&as_sdt=2005&sciodt=0,5&hl=en" target="_blank" class="hover:underline text-blue-600">
+                                            ${citationCount} citation${citationCount === 1 ? '' : 's'}
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             <tr>
