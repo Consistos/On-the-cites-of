@@ -124,16 +124,42 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         const titlePromises = batch.map(ref => getTitle(ref.citing));
         const titles = await Promise.all(titlePromises);
 
-        // Group references by title
-        const groupedReferences = {};
-        batch.forEach((ref, index) => {
-            const title = titles[index];
-            if (title !== 'Title not available') {
-                if (!groupedReferences[title]) {
-                    groupedReferences[title] = [];
+        // Fetch citation counts from Crossref for sorting
+        const citationCountPromises = batch.map(async (ref) => {
+            try {
+                const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(ref.citing)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.message['is-referenced-by-count'] || 0;
                 }
-                groupedReferences[title].push(ref.citing);
+                return 0;
+            } catch (error) {
+                console.error(`Error fetching citation count for ${ref.citing}:`, error);
+                return 0;
             }
+        });
+        const citationCounts = await Promise.all(citationCountPromises);
+
+        // Create array of references with titles and citation counts
+        const referencesWithData = batch.map((ref, index) => ({
+            citing: ref.citing,
+            title: titles[index],
+            citationCount: citationCounts[index]
+        })).filter(ref => ref.title !== 'Title not available');
+
+        // Sort by citation count (descending)
+        referencesWithData.sort((a, b) => b.citationCount - a.citationCount);
+
+        // Group references by title (maintaining sort order)
+        const groupedReferences = {};
+        referencesWithData.forEach(ref => {
+            if (!groupedReferences[ref.title]) {
+                groupedReferences[ref.title] = {
+                    dois: [],
+                    citationCount: ref.citationCount
+                };
+            }
+            groupedReferences[ref.title].dois.push(ref.citing);
         });
 
         return { groupedReferences, validReferencesCount: Object.keys(groupedReferences).length };
@@ -180,13 +206,16 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     } else {
         // Create a container for mobile results
         html += `<div id="mobile-results-container">`;
-        for (const [title, dois] of Object.entries(groupedReferences)) {
+        for (const [title, refData] of Object.entries(groupedReferences)) {
+            const dois = refData.dois;
+            const citationCount = refData.citationCount;
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
             html += `
                 <table class="w-full mb-4 border border-gray-300 bg-white">
                     <tr>
                         <td class="px-4 py-2">
                             <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
+                            <div class="text-sm text-gray-500 mt-1">${citationCount} citation${citationCount === 1 ? '' : 's'}</div>
                         </td>
                     </tr>
                     <tr>
@@ -197,7 +226,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                                     <span class="text-gray-600">DOI</span>
                                     <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002-2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
                                         </svg>
                                     </button>
                                     <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
@@ -245,21 +274,27 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             <table class="w-full text-sm border-collapse border border-gray-300 mt-8" id="results-table">
                 <thead bg-gray-50>
                     <tr>
-                        <th class="w-[85%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
-                        <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
-                        <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
+                        <th class="w-[70%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
+                        <th class="w-[10%] text-gray-600 text-center border border-gray-300 px-4 py-2">Citations</th>
+                        <th class="w-[7%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
+                        <th class="w-[8%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
                         <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add to search</th>
                     </tr>
                 </thead>
                 <tbody id="results-tbody">`;
 
         let rowIndex = 0;
-        for (const [title, dois] of Object.entries(groupedReferences)) {
+        for (const [title, refData] of Object.entries(groupedReferences)) {
+            const dois = refData.dois;
+            const citationCount = refData.citationCount;
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
             const rowBgClass = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
             html += `<tr class="${rowBgClass}">
                 <td class="break-words py-2 border border-gray-300 p-2">
                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
+                </td>
+                <td class="break-words py-2 text-center border border-gray-300 p-2">
+                    <span class="text-gray-700">${citationCount}</span>
                 </td>
                 <td class="break-words py-2 text-center border border-gray-300 p-2">
                     <a href="${scholarUrl}" target="_blank" class="hover:underline">🔗</a>
@@ -343,7 +378,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 if (isMobile) {
                     // For mobile view, append new cards
                     const mobileResultsContainer = document.getElementById('mobile-results-container');
-                    for (const [title, dois] of Object.entries(groupedReferences)) {
+                    for (const [title, refData] of Object.entries(groupedReferences)) {
+                        const dois = refData.dois;
+                        const citationCount = refData.citationCount;
                         const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                         const card = document.createElement('table');
                         card.className = 'w-full mb-4 border border-gray-300 bg-white';
@@ -351,6 +388,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                             <tr>
                                 <td class="px-4 py-2">
                                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
+                                    <div class="text-sm text-gray-500 mt-1">${citationCount} citation${citationCount === 1 ? '' : 's'}</div>
                                 </td>
                             </tr>
                             <tr>
@@ -379,7 +417,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     const tbody = document.getElementById('results-tbody');
                     const currentRowCount = tbody.children.length;
                     let rowIndex = 0;
-                    for (const [title, dois] of Object.entries(groupedReferences)) {
+                    for (const [title, refData] of Object.entries(groupedReferences)) {
+                        const dois = refData.dois;
+                        const citationCount = refData.citationCount;
                         const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                         const row = document.createElement('tr');
                         const totalRowIndex = currentRowCount + rowIndex;
@@ -388,6 +428,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         row.innerHTML = `
                             <td class="break-words py-2 border border-gray-300 p-2">
                                 <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
+                            </td>
+                            <td class="break-words py-2 text-center border border-gray-300 p-2">
+                                <span class="text-gray-700">${citationCount}</span>
                             </td>
                             <td class="break-words py-2 text-center border border-gray-300 p-2">
                                 <a href="${scholarUrl}" target="_blank" class="hover:underline">🔗</a>
@@ -439,7 +482,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         if (isMobile) {
             // For mobile view, append new cards
             const mobileResultsContainer = document.getElementById('mobile-results-container');
-            for (const [title, dois] of Object.entries(groupedReferences)) {
+            for (const [title, refData] of Object.entries(groupedReferences)) {
+                const dois = refData.dois;
+                const citationCount = refData.citationCount;
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                 const card = document.createElement('table');
                 card.className = 'w-full mb-4 border border-gray-300 bg-white';
@@ -447,6 +492,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     <tr>
                         <td class="px-4 py-2">
                             <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
+                            <div class="text-sm text-gray-500 mt-1">${citationCount} citation${citationCount === 1 ? '' : 's'}</div>
                         </td>
                     </tr>
                     <tr>
@@ -475,7 +521,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             const tbody = document.getElementById('results-tbody');
             const currentRowCount = tbody.children.length;
             let rowIndex = 0;
-            for (const [title, dois] of Object.entries(groupedReferences)) {
+            for (const [title, refData] of Object.entries(groupedReferences)) {
+                const dois = refData.dois;
+                const citationCount = refData.citationCount;
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                 const row = document.createElement('tr');
                 const totalRowIndex = currentRowCount + rowIndex;
@@ -484,6 +532,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 row.innerHTML = `
                     <td class="break-words py-2 border border-gray-300 p-2">
                         <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
+                    </td>
+                    <td class="break-words py-2 text-center border border-gray-300 p-2">
+                        <span class="text-gray-700">${citationCount}</span>
                     </td>
                     <td class="break-words py-2 text-center border border-gray-300 p-2">
                         <a href="${scholarUrl}" target="_blank" class="hover:underline">🔗</a>

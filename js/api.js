@@ -39,7 +39,6 @@ const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
 async function getCitingPubs(doi, offset = 0, limit = 20) {
     // Convert arXiv ID to DataCite DOI format if needed
     const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.?)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
-    const isArxiv = !!arxivMatch;
     if (arxivMatch) {
         doi = `10.48550/arXiv.${arxivMatch[1]}`;
     }
