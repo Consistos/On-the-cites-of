@@ -19,7 +19,10 @@ import {
     copyToClipboard,
     showError,
     addToPublicationSearch,
-    updateUrlWithCurrentInputs
+    updateUrlWithCurrentInputs,
+    showProgressIndicator,
+    updateProgressIndicator,
+    clearProgressIndicator
 } from './ui.js';
 import { displayResults } from './results.js';
 
@@ -33,13 +36,17 @@ async function findCommonCitations(initialDois = null) {
         return;
     }
 
-    resultsDiv.innerHTML = '<div class="text-center text-gray-600">Searching...</div>';
+    // Initialize progress indicator
+    showProgressIndicator(resultsDiv, 'Initializing search...', 0, 3);
 
     try {
         let dois;
         if (initialDois) {
             dois = initialDois;
         } else {
+            // Step 1: Resolving DOIs
+            updateProgressIndicator('Resolving DOIs...', 1, 3);
+            
             // Pre-cache any existing DOIs from the input values
             for (const input of nonEmptyInputs) {
                 const value = input.value.trim();
@@ -48,7 +55,10 @@ async function findCommonCitations(initialDois = null) {
                 }
             }
             
-            dois = await Promise.all(nonEmptyInputs.map(input => getDOI(input)));
+            dois = await Promise.all(nonEmptyInputs.map(async (input, index) => {
+                updateProgressIndicator(`Resolving DOIs... (${index + 1}/${nonEmptyInputs.length})`, 1, 3);
+                return await getDOI(input);
+            }));
             
             if (dois.some(doi => !doi)) {
                 resultsDiv.innerHTML = '<div class="text-center text-gray-600">Could not find DOI for one or more articles</div>';
@@ -63,11 +73,17 @@ async function findCommonCitations(initialDois = null) {
             history.replaceState({}, '', newUrl);
         }
 
+        // Step 2: Fetching citations
+        updateProgressIndicator('Fetching citations...', 2, 3);
+        
         // Pre-fetch and cache references for all DOIs
-        await preCacheCitations(dois);
+        await preCacheCitations(dois, (message) => updateProgressIndicator(message, 2, 3));
 
         // Get ALL references for all DOIs (not just first page)
-        const allReferences = await Promise.all(dois.map(async doi => {
+        const allReferences = [];
+        for (let i = 0; i < dois.length; i++) {
+            const doi = dois[i];
+            updateProgressIndicator(`Fetching citations... (${i + 1}/${dois.length})`, 2, 3);
             console.log(`Getting references for DOI: ${doi}`);
             
             // First ensure data is cached
@@ -76,18 +92,18 @@ async function findCommonCitations(initialDois = null) {
             // Then get all cached citations
             const cachedData = getCachedData(doi);
             if (cachedData && Array.isArray(cachedData['cited-by'])) {
-                return {
+                allReferences.push({
                     status: 'SUCCESS',
                     data: cachedData['cited-by'], // Return ALL citations, not paginated
                     totalCount: cachedData['cited-by'].length,
                     hasMore: false,
                     nextOffset: null
-                };
+                });
             } else {
                 // Fallback to regular API call if cache miss
-                return getCitingPubs(doi);
+                allReferences.push(await getCitingPubs(doi));
             }
-        }));
+        }
         
         // Check for API errors
         if (allReferences.every(ref => ref.status === 'API_ERROR')) {
@@ -110,7 +126,11 @@ async function findCommonCitations(initialDois = null) {
             firstFewCitations: ref.data?.slice(0, 3).map(r => r.citing) || []
         })));
 
+        // Step 3: Finding common citations
+        updateProgressIndicator('Finding common citations...', 3, 3);
+        
         const commonReferences = allReferences.reduce((common, ref, index) => {
+            updateProgressIndicator(`Finding common citations... (${index + 1}/${allReferences.length})`, 3, 3);
             if (index === 0) return ref.data || [];
             return common.filter(ref1 => {
                 return (ref.data || []).some(ref2 => {
@@ -127,8 +147,11 @@ async function findCommonCitations(initialDois = null) {
         // Create a refCounts Map for compatibility with displayResults
         const refCounts = new Map();
         
+        // Clear progress indicator before showing results
+        clearProgressIndicator();
         await displayResults(commonReferences, dois, refCounts, allReferences);
     } catch (error) {
+        clearProgressIndicator();
         resultsDiv.innerHTML = '<div class="text-center text-gray-600">An error occurred: ' + error.message + '</div>';
         console.error('Error in findCommonCitations:', error);
     }

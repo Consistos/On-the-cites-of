@@ -22,8 +22,12 @@ export function setCachedData(doi, data) {
 
 // Helper function for pre-caching citations
 export function createPreCacheCitations(getTitle, getCitingPubs) {
-    return async function preCacheCitations(dois) {
-        await Promise.all(dois.map(async doi => {
+    return async function preCacheCitations(dois, progressCallback = null) {
+        await Promise.all(dois.map(async (doi, index) => {
+            if (progressCallback) {
+                progressCallback(`Pre-caching citations... (${index + 1}/${dois.length})`);
+            }
+            
             const title = await getTitle(doi);
             if (title && title !== "Unknown Title" && !getCachedData(doi)?.['cited-by']) {
                 console.log(`Pre-caching citations for DOI: ${doi}`);

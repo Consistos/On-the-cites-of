@@ -1,97 +1,8 @@
 import { getTitle, getCitingPubs, preCacheCitations } from './api.js';
-import { getDOI } from './identifiers.js';
-import { showError } from './ui.js';
+import { showProgressIndicator, updateProgressIndicator, clearProgressIndicator } from './ui.js';
 import { getCachedData, setCachedData } from './cache.js';
 
-async function findCommonCitations(initialDois = null) {
-    try {
-        const inputs = document.getElementsByClassName('article-input');
-        if (inputs.length < 2) {
-            showError('Please add at least two papers to compare');
-            return;
-        }
 
-        // Get DOIs from inputs or use initialDois
-        const dois = initialDois || [];
-        if (!initialDois) {
-            for (const input of inputs) {
-                const value = input.value.trim();
-                if (!value) continue;
-
-                const doi = await getDOI(value);
-                if (doi) {
-                    dois.push(doi);
-                }
-            }
-        }
-
-        if (dois.length < 2) {
-            showError('Please enter at least two valid papers to compare');
-            return;
-        }
-
-        // Update URL with DOIs
-        const params = new URLSearchParams();
-        dois.forEach((doi, index) => {
-            params.set(`doi${index + 1}`, doi);
-        });
-        const newUrl = `${window.location.pathname}?${params.toString()}`;
-        window.lastUrlUpdate = Date.now();
-        history.pushState({}, '', newUrl);
-
-        // Get citing publications for each DOI while keeping existing content
-        const resultsDiv = document.getElementById('results');
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'absolute top-0 left-0 w-full h-full flex items-center justify-center bg-white bg-opacity-80 z-10';
-        loadingDiv.innerHTML = '<div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div><div class="mt-2">Loading citations...</div></div>';
-
-        // Only add loading overlay if results exist
-        if (resultsDiv.children.length > 0) {
-            resultsDiv.style.position = 'relative';
-            resultsDiv.appendChild(loadingDiv);
-        } else {
-            resultsDiv.innerHTML = loadingDiv.innerHTML;
-        }
-
-        // Get citing publications for each DOI
-        const citingPublicationsResponses = await Promise.all(dois.map(doi => getCitingPubs(doi)));
-
-        // Extract the actual publication data and keep API response info
-        const citingPublications = citingPublicationsResponses.map(response => response?.data || []);
-        const allReferences = citingPublicationsResponses;
-
-        // Find common citations
-        const commonReferences = [];
-        const refCounts = new Map();
-
-        // Count occurrences of each citing DOI
-        citingPublications.forEach(pubs => {
-            if (!pubs) return;
-            pubs.forEach(pub => {
-                const count = refCounts.get(pub.citing) || 0;
-                refCounts.set(pub.citing, count + 1);
-            });
-        });
-
-        // Add references that appear in all papers
-        citingPublications[0]?.forEach(pub => {
-            if (refCounts.get(pub.citing) === dois.length) {
-                commonReferences.push(pub);
-            }
-        });
-
-        // Pre-cache titles for common references
-        const commonDois = commonReferences.map(ref => ref.citing);
-        await preCacheCitations(commonDois);
-
-        // Display results with API response data
-        await displayResults(commonReferences, dois, refCounts, allReferences);
-
-    } catch (error) {
-        console.error('Error in findCommonCitations:', error);
-        showError('Failed to find common citations');
-    }
-}
 
 async function displayResults(commonReferences, dois, refCounts, allReferences = null) {
     const resultsDiv = document.getElementById('results');
@@ -116,17 +27,22 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     // Fetch citation counts for ALL references upfront for proper sorting
     console.log('Fetching citation counts for all references...');
 
+    // Show progress for fetching citation counts
+    showProgressIndicator(resultsDiv, 'Fetching citation counts...', 1, 2);
+
     // Fetch citation counts from Crossref for ALL references (with caching)
-    const citationCountPromises = uniqueReferences.map(async (ref) => {
+    const citationCountPromises = uniqueReferences.map(async (ref, index) => {
+        updateProgressIndicator(`Fetching citation counts... (${index + 1}/${uniqueReferences.length})`, 1, 2);
+
         const cacheKey = `citationCount_${ref.citing}`;
-        
+
         // Check cache first
         const cachedCount = getCachedData(cacheKey);
         if (cachedCount !== null && cachedCount !== undefined) {
             console.log(`Citation count cache HIT for ${ref.citing}: ${cachedCount}`);
             return cachedCount;
         }
-        
+
         // Cache miss - fetch from API
         console.log(`Citation count cache MISS for ${ref.citing}, fetching from API`);
         try {
@@ -134,7 +50,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             if (response.ok) {
                 const data = await response.json();
                 const count = data.message['is-referenced-by-count'] || 0;
-                
+
                 // Cache the result
                 setCachedData(cacheKey, count);
                 return count;
@@ -190,6 +106,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 
         return { groupedReferences, validReferencesCount: Object.keys(groupedReferences).length };
     }
+
+    // Step 2: Rendering results
+    updateProgressIndicator('Preparing results...', 2, 2);
 
     // Initial render
     const { groupedReferences, validReferencesCount } = await renderReferences(0, itemsPerPage);
@@ -379,6 +298,8 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 
     html += `</div>`; // Close desktop view
 
+    // Clear progress indicator before showing final results
+    clearProgressIndicator();
     resultsDiv.innerHTML = html;
 
     // Add event listeners for "Load More" buttons
@@ -622,4 +543,4 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     }
 }
 
-export { findCommonCitations, displayResults };
+export { displayResults };

@@ -210,6 +210,50 @@ async function updateUrlWithCurrentInputs() {
     }
 }
 
+// Progress indicator functions
+function showProgressIndicator(container, message, currentStep, totalSteps) {
+    const progressHtml = `
+        <div id="progress-indicator" class="text-center py-8 px-4">
+            <div class="inline-block max-w-sm w-full">
+                <!-- Animated spinner -->
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                
+                <!-- Progress bar -->
+                <div class="w-full max-w-64 bg-gray-200 rounded-full h-2 mb-4 mx-auto">
+                    <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: ${(currentStep / totalSteps) * 100}%"></div>
+                </div>
+                
+                <!-- Progress text -->
+                <div class="text-gray-700 font-medium mb-2 text-sm sm:text-base" id="progress-message">${message}</div>
+                <div class="text-xs sm:text-sm text-gray-500" id="progress-steps">Step ${currentStep} of ${totalSteps}</div>
+            </div>
+        </div>
+    `;
+    
+    if (typeof container === 'string') {
+        document.getElementById(container).innerHTML = progressHtml;
+    } else {
+        container.innerHTML = progressHtml;
+    }
+}
+
+function updateProgressIndicator(message, currentStep, totalSteps) {
+    const progressMessage = document.getElementById('progress-message');
+    const progressSteps = document.getElementById('progress-steps');
+    const progressBar = document.querySelector('#progress-indicator .bg-blue-500');
+    
+    if (progressMessage) progressMessage.textContent = message;
+    if (progressSteps) progressSteps.textContent = `Step ${currentStep} of ${totalSteps}`;
+    if (progressBar) progressBar.style.width = `${(currentStep / totalSteps) * 100}%`;
+}
+
+function clearProgressIndicator() {
+    const progressIndicator = document.getElementById('progress-indicator');
+    if (progressIndicator) {
+        progressIndicator.remove();
+    }
+}
+
 export {
     addInput, 
     removeInput, 
@@ -221,5 +265,8 @@ export {
     copyToClipboard,
     showError,
     addToPublicationSearch,
-    updateUrlWithCurrentInputs
+    updateUrlWithCurrentInputs,
+    showProgressIndicator,
+    updateProgressIndicator,
+    clearProgressIndicator
 };
