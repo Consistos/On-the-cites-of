@@ -212,7 +212,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     }
 
     // Show citation counts for each entry below
-    html += `<div class="text-sm font-small">`;
+    html += `<div class="text-xs">`;
     html += dois.map((doi, index) => {
         if (allReferences && allReferences[index]) {
             const ref = allReferences[index];
