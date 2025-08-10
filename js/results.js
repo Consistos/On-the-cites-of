@@ -112,47 +112,57 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     const uniqueReferences = Array.from(new Set(commonReferences.map(ref => ref.citing)))
         .map(citing => commonReferences.find(ref => ref.citing === citing));
 
-    // Store references in a global variable for lazy loading
-    window.allReferences = uniqueReferences;
+    // Fetch citation counts for ALL references upfront for proper sorting
+    console.log('Fetching citation counts for all references...');
+
+    // Fetch citation counts from Crossref for ALL references
+    const citationCountPromises = uniqueReferences.map(async (ref) => {
+        try {
+            const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(ref.citing)}`);
+            if (response.ok) {
+                const data = await response.json();
+                return data.message['is-referenced-by-count'] || 0;
+            }
+            return 0;
+        } catch (error) {
+            console.error(`Error fetching citation count for ${ref.citing}:`, error);
+            return 0;
+        }
+    });
+    const citationCounts = await Promise.all(citationCountPromises);
+
+    // Create array of ALL references with citation counts (no titles yet)
+    const allReferencesWithCounts = uniqueReferences.map((ref, index) => ({
+        citing: ref.citing,
+        citationCount: citationCounts[index]
+    }));
+
+    // Sort ALL references by citation count (descending)
+    allReferencesWithCounts.sort((a, b) => b.citationCount - a.citationCount);
+
+    // Store sorted references globally for pagination
+    window.allSortedReferences = allReferencesWithCounts;
     window.currentPage = 1;
     const itemsPerPage = 20;
 
-
-    // Function to render a batch of references
+    // Function to render a batch of references from the pre-sorted array
     async function renderReferences(start, end) {
-        const batch = uniqueReferences.slice(start, end);
+        const batch = window.allSortedReferences.slice(start, end);
+
+        // Fetch titles only for this batch
         const titlePromises = batch.map(ref => getTitle(ref.citing));
         const titles = await Promise.all(titlePromises);
 
-        // Fetch citation counts from Crossref for sorting
-        const citationCountPromises = batch.map(async (ref) => {
-            try {
-                const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(ref.citing)}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.message['is-referenced-by-count'] || 0;
-                }
-                return 0;
-            } catch (error) {
-                console.error(`Error fetching citation count for ${ref.citing}:`, error);
-                return 0;
-            }
-        });
-        const citationCounts = await Promise.all(citationCountPromises);
-
-        // Create array of references with titles and citation counts
-        const referencesWithData = batch.map((ref, index) => ({
+        // Create references with titles for this batch
+        const batchWithTitles = batch.map((ref, index) => ({
             citing: ref.citing,
             title: titles[index],
-            citationCount: citationCounts[index]
+            citationCount: ref.citationCount
         })).filter(ref => ref.title !== 'Title not available');
-
-        // Sort by citation count (descending)
-        referencesWithData.sort((a, b) => b.citationCount - a.citationCount);
 
         // Group references by title (maintaining sort order)
         const groupedReferences = {};
-        referencesWithData.forEach(ref => {
+        batchWithTitles.forEach(ref => {
             if (!groupedReferences[ref.title]) {
                 groupedReferences[ref.title] = {
                     dois: [],
@@ -167,7 +177,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 
     // Initial render
     const { groupedReferences, validReferencesCount } = await renderReferences(0, itemsPerPage);
-    const totalReferences = uniqueReferences.length;
+    const totalReferences = window.allSortedReferences.length;
 
     // Calculate actual total count - use API totalCount if available for single paper searches
     let actualTotalCount = totalReferences;
@@ -243,16 +253,16 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     }
 
     // Add "Load More" button for mobile if there are more results
-    const shouldShowLoadMore = (totalReferences > itemsPerPage) || (allReferences && allReferences.some(ref => ref?.hasMore));
+    const shouldShowLoadMore = (window.allSortedReferences.length > itemsPerPage) || (allReferences && allReferences.some(ref => ref?.hasMore));
     if (shouldShowLoadMore) {
         let buttonText = 'Load More';
         if (allReferences && allReferences.length === 1 && allReferences[0]?.hasMore) {
             // Single paper with more citations
             const remaining = allReferences[0].totalCount - 20;
             buttonText = `Load More (${Math.min(20, remaining)} more)`;
-        } else if (totalReferences > itemsPerPage) {
+        } else if (window.allSortedReferences.length > itemsPerPage) {
             // Common citations pagination
-            buttonText = `Load More (${Math.min(itemsPerPage, totalReferences - itemsPerPage)} more)`;
+            buttonText = `Load More (${Math.min(itemsPerPage, window.allSortedReferences.length - itemsPerPage)} more)`;
         }
         html += `
             <div class="text-center mt-4 mb-4">
@@ -329,9 +339,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 // Single paper with more citations
                 const remaining = allReferences[0].totalCount - 20;
                 buttonText = `Load More (${Math.min(20, remaining)} more)`;
-            } else if (totalReferences > itemsPerPage) {
+            } else if (window.allSortedReferences.length > itemsPerPage) {
                 // Common citations pagination
-                buttonText = `Load More (${Math.min(itemsPerPage, totalReferences - itemsPerPage)} more)`;
+                buttonText = `Load More (${Math.min(itemsPerPage, window.allSortedReferences.length - itemsPerPage)} more)`;
             }
             html += `
                 <div class="text-center mt-4 mb-8">
@@ -564,7 +574,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         window.currentPage++;
 
         // Hide "Load More" buttons if we've loaded all results
-        if (end >= totalReferences) {
+        if (end >= window.allSortedReferences.length) {
             if (loadMoreButton) loadMoreButton.style.display = 'none';
             if (loadMoreMobileButton) loadMoreMobileButton.style.display = 'none';
         }
