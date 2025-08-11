@@ -183,12 +183,12 @@ async function getDOI(input) {
 
             for (const item of data.message.items) {
                 const doi = item.DOI;
-                
+
                 // Skip items without a title
                 if (!item.title || !item.title[0]) {
                     continue;
                 }
-                
+
                 const title = item.title[0];
                 const citationCount = item['is-referenced-by-count'] || 0;
 
