@@ -264,8 +264,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             const dois = refData.dois;
             const citationCount = refData.citationCount;
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
-            const rowBgClass = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-            html += `<tr class="${rowBgClass}">
+            html += `<tr>
                 <td class="break-words py-2 border border-gray-300 p-2">
                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
                 </td>
@@ -406,9 +405,6 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         const citationCount = refData.citationCount;
                         const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                         const row = document.createElement('tr');
-                        const totalRowIndex = currentRowCount + rowIndex;
-                        const rowBgClass = totalRowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                        row.className = rowBgClass;
                         row.innerHTML = `
                             <td class="break-words py-2 border border-gray-300 p-2">
                                 <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
@@ -516,9 +512,6 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 const citationCount = refData.citationCount;
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                 const row = document.createElement('tr');
-                const totalRowIndex = currentRowCount + rowIndex;
-                const rowBgClass = totalRowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                row.className = rowBgClass;
                 row.innerHTML = `
                     <td class="break-words py-2 border border-gray-300 p-2">
                         <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
