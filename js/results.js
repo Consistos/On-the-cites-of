@@ -14,7 +14,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     }
     if (commonReferences.length === 0) {
         let message = '<div class="text-center text-gray-600 mt-4">';
-        message += 'No common cited by found between these papers.<br>';
+        message += 'No common citations found between these papers.<br>';
         message += 'Note: OpenCitations might not have cited by data for the given DOIs.</div>';
         resultsDiv.innerHTML = message;
         return;
@@ -163,9 +163,9 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         if (allReferences && allReferences[index]) {
             const ref = allReferences[index];
             const totalCount = ref?.totalCount || ref?.data?.length || 0;
-            return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}`;
+            return `${totalCount} citation${totalCount === 1 ? '' : 's'} publications citing entry ${index + 1}`;
         } else {
-            return `Cited by found for entry ${index + 1}`;
+            return `Publications citing entry ${index + 1}`;
         }
     }).join(' • ');
     html += `</div>`;
@@ -243,7 +243,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     html += `<div class="hidden sm:block">`;
 
     if (validReferencesCount === 0 && commonReferences.length > 0) {
-        html += `<p class="text-center">Cited by in common found, but no titles available.</p>`;
+        html += `<p class="text-center">Citations in common found, but no titles available.</p>`;
     } else {
         // Create table with full width
         html += `<div class="w-full max-w-[1400px] mx-auto">
