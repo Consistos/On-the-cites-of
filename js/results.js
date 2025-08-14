@@ -1,4 +1,4 @@
-import { getTitle, getCitingPubs, preCacheCitations } from './api.js';
+import { getTitle, getPublicationMetadata, getCitingPubs, preCacheCitations } from './api.js';
 import { showProgressIndicator, updateProgressIndicator, clearProgressIndicator } from './ui.js';
 import { getCachedData, setCachedData } from './cache.js';
 
@@ -108,24 +108,28 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     async function renderReferences(start, end) {
         const batch = window.allSortedReferences.slice(start, end);
 
-        // Fetch titles only for this batch
-        const titlePromises = batch.map(ref => getTitle(ref.citing));
-        const titles = await Promise.all(titlePromises);
+        // Fetch metadata for this batch
+        const metadataPromises = batch.map(ref => getPublicationMetadata(ref.citing));
+        const metadataArray = await Promise.all(metadataPromises);
 
-        // Create references with titles for this batch
-        const batchWithTitles = batch.map((ref, index) => ({
+        // Create references with metadata for this batch
+        const batchWithMetadata = batch.map((ref, index) => ({
             citing: ref.citing,
-            title: titles[index],
+            title: metadataArray[index].title,
+            journal: metadataArray[index].journal,
+            publishedDate: metadataArray[index].publishedDate,
             citationCount: ref.citationCount
-        })).filter(ref => ref.title !== 'Title not available');
+        })).filter(ref => ref.title !== 'Title not available' && ref.title !== 'Unknown Title');
 
         // Group references by title (maintaining sort order)
         const groupedReferences = {};
-        batchWithTitles.forEach(ref => {
+        batchWithMetadata.forEach(ref => {
             if (!groupedReferences[ref.title]) {
                 groupedReferences[ref.title] = {
                     dois: [],
-                    citationCount: ref.citationCount
+                    citationCount: ref.citationCount,
+                    journal: ref.journal,
+                    publishedDate: ref.publishedDate
                 };
             }
             groupedReferences[ref.title].dois.push(ref.citing);
@@ -181,6 +185,8 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         for (const [title, refData] of Object.entries(groupedReferences)) {
             const dois = refData.dois;
             const citationCount = refData.citationCount;
+            const journal = refData.journal || 'Unknown Journal';
+            const publishedDate = refData.publishedDate || 'Unknown';
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
             html += `
                 <table class="w-full mb-4 border border-gray-300 bg-white">
@@ -188,6 +194,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <td class="px-4 py-2">
                             <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
                             <div class="text-sm text-gray-500 mt-1">
+                                <div class="mb-1">${journal} • ${publishedDate}</div>
                                 <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                                     ${citationCount} citation${citationCount === 1 ? '' : 's'}
                                 </a>
@@ -250,11 +257,13 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             <table class="w-full text-sm border-collapse border border-gray-300 mt-8" id="results-table">
                 <thead class="bg-white">
                     <tr>
-                        <th class="w-[76%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
-                        <th class="w-[7%] text-gray-600 text-center border border-gray-300 px-4 py-2">Cited by</th>
-                        <th class="w-[5%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
-                        <th class="w-[6%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
-                        <th class="w-[6%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add to search</th>
+                        <th class="w-[50%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
+                        <th class="w-[8%] text-gray-600 text-center border border-gray-300 px-2 py-2">Year</th>
+                        <th class="w-[15%] text-gray-600 text-left border border-gray-300 px-2 py-2">Journal</th>
+                        <th class="w-[7%] text-gray-600 text-center border border-gray-300 px-2 py-2">Cited by</th>
+                        <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Scholar</th>
+                        <th class="w-[6%] text-gray-600 text-center border border-gray-300 px-2 py-2">DOI</th>
+                        <th class="w-[9%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add to search</th>
                     </tr>
                 </thead>
                 <tbody id="results-tbody">`;
@@ -263,10 +272,18 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         for (const [title, refData] of Object.entries(groupedReferences)) {
             const dois = refData.dois;
             const citationCount = refData.citationCount;
+            const journal = refData.journal || 'Unknown';
+            const publishedDate = refData.publishedDate || 'Unknown';
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
             html += `<tr>
                 <td class="break-words py-2 border border-gray-300 p-2">
                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
+                </td>
+                <td class="break-words py-2 text-center border border-gray-300 p-2">
+                    ${publishedDate}
+                </td>
+                <td class="break-words py-2 border border-gray-300 p-2 text-sm">
+                    ${journal}
                 </td>
                 <td class="break-words py-2 text-center border border-gray-300 p-2">
                     <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
@@ -360,6 +377,8 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     for (const [title, refData] of Object.entries(groupedReferences)) {
                         const dois = refData.dois;
                         const citationCount = refData.citationCount;
+                        const journal = refData.journal || 'Unknown Journal';
+                        const publishedDate = refData.publishedDate || 'Unknown';
                         const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                         const card = document.createElement('table');
                         card.className = 'w-full mb-4 border border-gray-300 bg-white';
@@ -368,6 +387,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                                 <td class="px-4 py-2">
                                     <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
                                     <div class="text-sm text-gray-500 mt-1">
+                                        <div class="mb-1">${journal} • ${publishedDate}</div>
                                         <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                                             ${citationCount} citation${citationCount === 1 ? '' : 's'}
                                         </a>
@@ -403,11 +423,19 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                     for (const [title, refData] of Object.entries(groupedReferences)) {
                         const dois = refData.dois;
                         const citationCount = refData.citationCount;
+                        const journal = refData.journal || 'Unknown';
+                        const publishedDate = refData.publishedDate || 'Unknown';
                         const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td class="break-words py-2 border border-gray-300 p-2">
                                 <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
+                            </td>
+                            <td class="break-words py-2 text-center border border-gray-300 p-2">
+                                ${publishedDate}
+                            </td>
+                            <td class="break-words py-2 border border-gray-300 p-2 text-sm">
+                                ${journal}
                             </td>
                             <td class="break-words py-2 text-center border border-gray-300 p-2">
                                 <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
@@ -467,6 +495,8 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             for (const [title, refData] of Object.entries(groupedReferences)) {
                 const dois = refData.dois;
                 const citationCount = refData.citationCount;
+                const journal = refData.journal || 'Unknown Journal';
+                const publishedDate = refData.publishedDate || 'Unknown';
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                 const card = document.createElement('table');
                 card.className = 'w-full mb-4 border border-gray-300 bg-white';
@@ -475,6 +505,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <td class="px-4 py-2">
                             <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline block mb-2">${title}</a>
                             <div class="text-sm text-gray-500 mt-1">
+                                <div class="mb-1">${journal} • ${publishedDate}</div>
                                 <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
                                     ${citationCount} citation${citationCount === 1 ? '' : 's'}
                                 </a>
@@ -510,11 +541,19 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             for (const [title, refData] of Object.entries(groupedReferences)) {
                 const dois = refData.dois;
                 const citationCount = refData.citationCount;
+                const journal = refData.journal || 'Unknown';
+                const publishedDate = refData.publishedDate || 'Unknown';
                 const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="break-words py-2 border border-gray-300 p-2">
                         <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${title}</a>
+                    </td>
+                    <td class="break-words py-2 text-center border border-gray-300 p-2">
+                        ${publishedDate}
+                    </td>
+                    <td class="break-words py-2 border border-gray-300 p-2 text-sm">
+                        ${journal}
                     </td>
                     <td class="break-words py-2 text-center border border-gray-300 p-2">
                         <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
@@ -536,7 +575,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         </div>
                     </td>
                     <td class="break-words py-2 text-center border border-gray-300 p-2">
-                        <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                        <button data-title="${title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-gray-300 hover:bg-blue-50 transition-colors">
                             +
                         </button>
                     </td>

@@ -248,9 +248,16 @@ async function getTitle(doi) {
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(text, "text/xml");
             const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
+            const publishedDate = xmlDoc.querySelector('entry > published')?.textContent?.trim();
+            
             if (title) {
-                // Cache by DOI
-                setCachedData(doi, { title });
+                // Cache by DOI with additional metadata
+                const metadata = { 
+                    title,
+                    journal: 'arXiv',
+                    publishedDate: publishedDate ? new Date(publishedDate).getFullYear().toString() : null
+                };
+                setCachedData(doi, metadata);
                 return title;
             }
             return "Unknown Title";
@@ -269,8 +276,16 @@ async function getTitle(doi) {
         if (response.ok) {
             const title = data?.message?.title?.[0];
             if (title) {
-                // Cache by DOI
-                setCachedData(doi, { title });
+                // Extract additional metadata
+                const journal = data?.message?.['container-title']?.[0] || 'Unknown Journal';
+                const publishedDate = data?.message?.published?.['date-parts']?.[0]?.[0]?.toString() || 
+                                    data?.message?.['published-online']?.['date-parts']?.[0]?.[0]?.toString() ||
+                                    data?.message?.['published-print']?.['date-parts']?.[0]?.[0]?.toString() ||
+                                    null;
+                
+                // Cache by DOI with additional metadata
+                const metadata = { title, journal, publishedDate };
+                setCachedData(doi, metadata);
                 return title;
             }
         }
@@ -315,8 +330,80 @@ const preCacheCitations = createPreCacheCitations(getTitle, getCitingPubs);
 // Create preCacheCitationCounts function with required dependencies
 const preCacheCitationCounts = createPreCacheCitationCounts(rateLimiter);
 
+// Function to get publication metadata (title, journal, date)
+async function getPublicationMetadata(doi) {
+    // Check cache by DOI first
+    let cachedData = getCachedData(doi);
+    if (cachedData && cachedData.title && cachedData.journal !== undefined && cachedData.publishedDate !== undefined) {
+        return {
+            title: cachedData.title,
+            journal: cachedData.journal,
+            publishedDate: cachedData.publishedDate
+        };
+    }
+
+    const arxivMatch = doi.match(/^(?:arxiv:|10\.48550\/arXiv\.)(\d{4}\.\d{4,5}(?:v\d+)?)$/i);
+    if (arxivMatch) {
+        const arxivId = arxivMatch[1];
+        try {
+            const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const title = xmlDoc.querySelector('entry > title')?.textContent?.trim();
+            const publishedDate = xmlDoc.querySelector('entry > published')?.textContent?.trim();
+            
+            const metadata = {
+                title: title || "Unknown Title",
+                journal: 'arXiv',
+                publishedDate: publishedDate ? new Date(publishedDate).getFullYear().toString() : null
+            };
+            
+            // Update cache with complete metadata
+            const existingData = getCachedData(doi) || {};
+            setCachedData(doi, { ...existingData, ...metadata });
+            
+            return metadata;
+        } catch (error) {
+            console.error('Error fetching arXiv metadata:', error);
+            return { title: "Unknown Title", journal: null, publishedDate: null };
+        }
+    }
+
+    try {
+        const encodedDoi = encodeURIComponent(doi.replace(/\s+/g, ''));
+        const url = `https://api.crossref.org/works/${encodedDoi}?${emailParam}`;
+        const response = await rateLimiter.add(() => fetch(url));
+        const data = await response.json();
+
+        if (response.ok) {
+            const title = data?.message?.title?.[0] || "Unknown Title";
+            const journal = data?.message?.['container-title']?.[0] || null;
+            const publishedDate = data?.message?.published?.['date-parts']?.[0]?.[0]?.toString() || 
+                                data?.message?.['published-online']?.['date-parts']?.[0]?.[0]?.toString() ||
+                                data?.message?.['published-print']?.['date-parts']?.[0]?.[0]?.toString() ||
+                                null;
+            
+            const metadata = { title, journal, publishedDate };
+            
+            // Update cache with complete metadata
+            const existingData = getCachedData(doi) || {};
+            setCachedData(doi, { ...existingData, ...metadata });
+            
+            return metadata;
+        }
+
+        console.log(`No metadata found for DOI: ${doi}`);
+        return { title: "Unknown Title", journal: null, publishedDate: null };
+    } catch (error) {
+        console.error('Error fetching metadata:', error);
+        return { title: "Unknown Title", journal: null, publishedDate: null };
+    }
+}
+
 export {
     getTitle,
+    getPublicationMetadata,
     getCitingPubs,
     loadMoreCitations,
     rateLimiter,
