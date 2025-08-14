@@ -258,9 +258,13 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 <thead class="bg-white">
                     <tr>
                         <th class="w-[50%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
-                        <th class="w-[8%] text-gray-600 text-center border border-gray-300 px-2 py-2">Year</th>
+                        <th class="w-[8%] text-gray-600 text-center border border-gray-300 px-2 py-2 cursor-pointer hover:bg-gray-100 select-none" onclick="sortTable('year')" id="year-header">
+                            Year <span id="year-sort-indicator" class="ml-1 text-xs">↕</span>
+                        </th>
                         <th class="w-[15%] text-gray-600 text-left border border-gray-300 px-2 py-2">Journal</th>
-                        <th class="w-[7%] text-gray-600 text-center border border-gray-300 px-2 py-2">Cited by</th>
+                        <th class="w-[7%] text-gray-600 text-center border border-gray-300 px-2 py-2 cursor-pointer hover:bg-gray-100 select-none" onclick="sortTable('citations')" id="citations-header">
+                            Cited by <span id="citations-sort-indicator" class="ml-1 text-xs">↕</span>
+                        </th>
                         <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Scholar</th>
                         <th class="w-[6%] text-gray-600 text-center border border-gray-300 px-2 py-2">DOI</th>
                         <th class="w-[9%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add to search</th>
@@ -344,6 +348,16 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     // Clear progress indicator before showing final results
     clearProgressIndicator();
     resultsDiv.innerHTML = html;
+
+    // Store the current grouped references for sorting
+    window.currentGroupedReferences = groupedReferences;
+    window.currentSortColumn = 'citations'; // Default sort by citations (descending)
+    window.currentSortDirection = 'desc';
+    
+    // Initialize sort indicators
+    setTimeout(() => {
+        updateSortIndicators('citations', 'desc');
+    }, 100);
 
     // Add event listeners for "Load More" buttons
     const loadMoreButton = document.getElementById('load-more');
@@ -601,5 +615,129 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         loadMoreMobileButton.addEventListener('click', () => handleLoadMore(true));
     }
 }
+
+// Helper functions for sorting
+function extractYear(dateString) {
+    if (!dateString || dateString === 'Unknown') return 0;
+    
+    // Try to extract year from various date formats
+    const yearMatch = dateString.match(/(\d{4})/);
+    return yearMatch ? parseInt(yearMatch[1]) : 0;
+}
+
+function updateSortIndicators(activeColumn, direction) {
+    // Reset all indicators
+    const yearIndicator = document.getElementById('year-sort-indicator');
+    const citationsIndicator = document.getElementById('citations-sort-indicator');
+    
+    if (yearIndicator) yearIndicator.textContent = '↕';
+    if (citationsIndicator) citationsIndicator.textContent = '↕';
+    
+    // Set active indicator
+    const activeIndicator = document.getElementById(`${activeColumn}-sort-indicator`);
+    if (activeIndicator) {
+        activeIndicator.textContent = direction === 'asc' ? '↑' : '↓';
+    }
+}
+
+// Sorting functionality
+function sortTable(column) {
+    if (!window.currentGroupedReferences) return;
+
+    // Determine sort direction
+    let direction = 'asc';
+    if (window.currentSortColumn === column) {
+        direction = window.currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else if (column === 'citations') {
+        direction = 'desc'; // Default to descending for citations
+    }
+
+    window.currentSortColumn = column;
+    window.currentSortDirection = direction;
+
+    // Convert grouped references to array for sorting
+    const referencesArray = Object.entries(window.currentGroupedReferences).map(([title, refData]) => ({
+        title,
+        ...refData
+    }));
+
+    // Sort the array
+    referencesArray.sort((a, b) => {
+        let valueA, valueB;
+
+        if (column === 'year') {
+            // Extract year from publishedDate
+            valueA = extractYear(a.publishedDate);
+            valueB = extractYear(b.publishedDate);
+        } else if (column === 'citations') {
+            valueA = a.citationCount || 0;
+            valueB = b.citationCount || 0;
+        }
+
+        if (direction === 'asc') {
+            return valueA - valueB;
+        } else {
+            return valueB - valueA;
+        }
+    });
+
+    // Update sort indicators
+    updateSortIndicators(column, direction);
+
+    // Re-render the table body
+    const tbody = document.getElementById('results-tbody');
+    if (tbody) {
+        tbody.innerHTML = '';
+        
+        referencesArray.forEach(ref => {
+            const dois = ref.dois;
+            const citationCount = ref.citationCount;
+            const journal = ref.journal || 'Unknown';
+            const publishedDate = ref.publishedDate || 'Unknown';
+            const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.title)}`;
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="break-words py-2 border border-gray-300 p-2">
+                    <a href="https://doi.org/${dois[0]}" target="_blank" class="hover:underline">${ref.title}</a>
+                </td>
+                <td class="break-words py-2 text-center border border-gray-300 p-2">
+                    ${publishedDate}
+                </td>
+                <td class="break-words py-2 border border-gray-300 p-2 text-sm">
+                    ${journal}
+                </td>
+                <td class="break-words py-2 text-center border border-gray-300 p-2">
+                    <a href="index.html?doi1=${encodeURIComponent(dois[0])}" target="_blank" class="hover:underline text-blue-600" title="Find papers that cite this publication">
+                        ${citationCount}
+                    </a>
+                </td>
+                <td class="break-words py-2 text-center border border-gray-300 p-2">
+                    <a href="${scholarUrl}" target="_blank" class="hover:underline">🔗</a>
+                </td>
+                <td class="break-words py-2 text-center border border-gray-300 p-2">
+                    <div class="relative">
+                        <div id="copyMessage-${dois[0]}" class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-md opacity-0 transition-opacity duration-200">Copied</div>
+                        <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
+                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                            </svg>
+                        </button>
+                        ${dois.length > 1 ? `<div class="text-sm text-gray-600">${dois.length} DOIs</div>` : ''}
+                    </div>
+                </td>
+                <td class="break-words py-2 text-center border border-gray-300 p-2">
+                    <button data-title="${ref.title.replace(/"/g, '&quot;')}" data-doi="${dois[0]}" onclick="addToPublicationSearch(this.dataset.title, this.dataset.doi)" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-300 hover:bg-blue-50 transition-colors">
+                        +
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+}
+
+// Make sortTable available globally
+window.sortTable = sortTable;
 
 export { displayResults };

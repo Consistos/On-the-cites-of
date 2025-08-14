@@ -1,10 +1,9 @@
 import { getTitle, rateLimiter, handleCrossrefResponse, handleCrossrefError } from './api.js';
 import { getCachedData, setCachedData } from './cache.js';
 import { updateInputWithTitle } from './ui.js';
+import { EMAIL_CONFIG } from './config.js';
 
-const emailParts = ['dbag', 'ory', '@', 'icl', 'oud.com'];
-const getEmail = () => emailParts.join('');
-const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
+const emailParam = EMAIL_CONFIG.getEmailParam();
 
 // Function to normalize titles by removing common prefixes
 function normalizeTitle(title) {
@@ -244,7 +243,7 @@ async function getDOI(input) {
 }
 
 async function extractPubMedDOI(pmid) {
-    const apiUrl = `https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?ids=${pmid}&format=json&versions=no&tool=citesof&email=${getEmail()}`;
+    const apiUrl = `https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?ids=${pmid}&format=json&versions=no&tool=citesof&email=${EMAIL_CONFIG.getEmail()}`;
     try {
         const response = await fetch(apiUrl);
         const data = await response.json();

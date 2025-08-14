@@ -1,12 +1,10 @@
 import { showError } from './ui.js';
 import { getCachedData, setCachedData, createPreCacheCitations, createPreCacheCitationCounts } from './cache.js';
-
-// Obfuscated email construction for Crossref API
-const emailParts = ['dbag', 'ory', '@', 'icl', 'oud.com'];
+import { EMAIL_CONFIG, API_CONFIG } from './config.js';
 
 // Rate limiter for Crossref API
 class RateLimiter {
-    constructor(maxConcurrent = 5) {
+    constructor(maxConcurrent = API_CONFIG.rateLimiter.maxConcurrent) {
         this.maxConcurrent = maxConcurrent;
         this.currentRequests = 0;
         this.queue = [];
@@ -31,10 +29,9 @@ class RateLimiter {
 }
 
 // Rate limiter instance
-const rateLimiter = new RateLimiter(5);
+const rateLimiter = new RateLimiter();
 
-const getEmail = () => emailParts.join('');
-const emailParam = `mailto=${encodeURIComponent(getEmail())}`;
+const emailParam = EMAIL_CONFIG.getEmailParam();
 
 async function getCitingPubs(doi, offset = 0, limit = 20) {
     // Convert arXiv ID to DataCite DOI format if needed

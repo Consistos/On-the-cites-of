@@ -1,4 +1,6 @@
-const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // A week in milliseconds
+import { API_CONFIG } from './config.js';
+
+const CACHE_EXPIRY = API_CONFIG.cache.expiryDays * 24 * 60 * 60 * 1000; // Configurable cache expiry in milliseconds
 
 export function getCachedData(doi) {
     const cached = localStorage.getItem(doi);
