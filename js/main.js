@@ -4,7 +4,8 @@ import {
     rateLimiter,
     handleCrossrefResponse,
     handleCrossrefError,
-    preCacheCitations
+    preCacheCitations,
+    preCacheCitationCounts
 } from './api.js';
 import { getCachedData, setCachedData } from './cache.js';
 import { getDOI, extractArXivDOI, extractPubMedDOI } from './identifiers.js';
@@ -127,10 +128,10 @@ async function findCommonCitations(initialDois = null) {
         })));
 
         // Step 3: Finding common citations
-        updateProgressIndicator('Finding common citations...', 3, 3);
+        updateProgressIndicator('Finding common citations...', 3, 4);
         
         const commonReferences = allReferences.reduce((common, ref, index) => {
-            updateProgressIndicator(`Finding common citations... (${index + 1}/${allReferences.length})`, 3, 3);
+            updateProgressIndicator(`Finding common citations... (${index + 1}/${allReferences.length})`, 3, 4);
             if (index === 0) return ref.data || [];
             return common.filter(ref1 => {
                 return (ref.data || []).some(ref2 => {
@@ -142,6 +143,17 @@ async function findCommonCitations(initialDois = null) {
         console.log(`Found ${commonReferences.length} common citations`);
         if (commonReferences.length > 0) {
             console.log('First few common citations:', commonReferences.slice(0, 3).map(r => r.citing));
+        }
+
+        // Step 4: Pre-cache citation counts for better performance
+        if (commonReferences.length > 0) {
+            updateProgressIndicator('Caching citation counts...', 4, 4);
+            
+            // Get unique citing DOIs from common references
+            const uniqueCitingDois = Array.from(new Set(commonReferences.map(ref => ref.citing)));
+            
+            // Pre-cache citation counts for all unique citing DOIs
+            await preCacheCitationCounts(uniqueCitingDois, (message) => updateProgressIndicator(message, 4, 4));
         }
 
         // Create a refCounts Map for compatibility with displayResults

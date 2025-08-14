@@ -1,5 +1,5 @@
 import { showError } from './ui.js';
-import { getCachedData, setCachedData, createPreCacheCitations } from './cache.js';
+import { getCachedData, setCachedData, createPreCacheCitations, createPreCacheCitationCounts } from './cache.js';
 
 // Obfuscated email construction for Crossref API
 const emailParts = ['dbag', 'ory', '@', 'icl', 'oud.com'];
@@ -312,6 +312,9 @@ async function loadMoreCitations(doi, offset) {
 // Create preCacheCitations function with required dependencies
 const preCacheCitations = createPreCacheCitations(getTitle, getCitingPubs);
 
+// Create preCacheCitationCounts function with required dependencies
+const preCacheCitationCounts = createPreCacheCitationCounts(rateLimiter);
+
 export {
     getTitle,
     getCitingPubs,
@@ -319,5 +322,6 @@ export {
     rateLimiter,
     handleCrossrefResponse,
     handleCrossrefError,
-    preCacheCitations
+    preCacheCitations,
+    preCacheCitationCounts
 };

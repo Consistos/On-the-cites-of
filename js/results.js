@@ -14,8 +14,8 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     }
     if (commonReferences.length === 0) {
         let message = '<div class="text-center text-gray-600 mt-4">';
-        message += 'No common citations found between these papers.<br>';
-        message += 'Note: OpenCitations might not have citation data for the given DOIs.</div>';
+        message += 'No common cited by found between these papers.<br>';
+        message += 'Note: OpenCitations might not have cited by data for the given DOIs.</div>';
         resultsDiv.innerHTML = message;
         return;
     }
@@ -24,44 +24,71 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     const uniqueReferences = Array.from(new Set(commonReferences.map(ref => ref.citing)))
         .map(citing => commonReferences.find(ref => ref.citing === citing));
 
-    // Fetch citation counts for ALL references upfront for proper sorting
-    console.log('Fetching citation counts for all references...');
+    // Get citation counts from cache (should already be pre-cached)
+    console.log('Getting citation counts from cache...');
 
-    // Show progress for fetching citation counts
-    showProgressIndicator(resultsDiv, 'Fetching citation counts...', 1, 2);
+    // Show progress for getting citation counts
+    showProgressIndicator(resultsDiv, 'Loading citation counts...', 1, 2);
 
-    // Fetch citation counts from Crossref for ALL references (with caching)
-    const citationCountPromises = uniqueReferences.map(async (ref, index) => {
-        updateProgressIndicator(`Fetching citation counts... (${index + 1}/${uniqueReferences.length})`, 1, 2);
+    // First, try to get all citation counts from cache
+    const citationCountsFromCache = uniqueReferences.map((ref, index) => {
+        updateProgressIndicator(`Loading citation counts... (${index + 1}/${uniqueReferences.length})`, 1, 2);
 
         const cacheKey = `citationCount_${ref.citing}`;
-
-        // Check cache first
         const cachedCount = getCachedData(cacheKey);
+
         if (cachedCount !== null && cachedCount !== undefined) {
             console.log(`Citation count cache HIT for ${ref.citing}: ${cachedCount}`);
-            return cachedCount;
-        }
-
-        // Cache miss - fetch from API
-        console.log(`Citation count cache MISS for ${ref.citing}, fetching from API`);
-        try {
-            const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(ref.citing)}`);
-            if (response.ok) {
-                const data = await response.json();
-                const count = data.message['is-referenced-by-count'] || 0;
-
-                // Cache the result
-                setCachedData(cacheKey, count);
-                return count;
-            }
-            return 0;
-        } catch (error) {
-            console.error(`Error fetching citation count for ${ref.citing}:`, error);
-            return 0;
+            return { citing: ref.citing, count: cachedCount, cached: true };
+        } else {
+            console.log(`Citation count cache MISS for ${ref.citing}`);
+            return { citing: ref.citing, count: 0, cached: false };
         }
     });
-    const citationCounts = await Promise.all(citationCountPromises);
+
+    // Check if any citation counts are missing from cache
+    const uncachedRefs = citationCountsFromCache.filter(item => !item.cached);
+
+    if (uncachedRefs.length > 0) {
+        console.log(`Found ${uncachedRefs.length} uncached citation counts, fetching from API...`);
+        updateProgressIndicator(`Fetching missing citation counts... (0/${uncachedRefs.length})`, 1, 2);
+
+        // Fetch missing citation counts
+        const missingCountPromises = uncachedRefs.map(async (item, index) => {
+            updateProgressIndicator(`Fetching missing citation counts... (${index + 1}/${uncachedRefs.length})`, 1, 2);
+
+            const cacheKey = `citationCount_${item.citing}`;
+            try {
+                const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(item.citing)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = data.message['is-referenced-by-count'] || 0;
+                    setCachedData(cacheKey, count);
+                    console.log(`Fetched and cached citation count for ${item.citing}: ${count}`);
+                    return count;
+                }
+                setCachedData(cacheKey, 0);
+                return 0;
+            } catch (error) {
+                console.error(`Error fetching citation count for ${item.citing}:`, error);
+                setCachedData(cacheKey, 0);
+                return 0;
+            }
+        });
+
+        const missingCounts = await Promise.all(missingCountPromises);
+
+        // Update the citation counts array with fetched values
+        let missingIndex = 0;
+        citationCountsFromCache.forEach(item => {
+            if (!item.cached) {
+                item.count = missingCounts[missingIndex++];
+                item.cached = true;
+            }
+        });
+    }
+
+    const citationCounts = citationCountsFromCache.map(item => item.count);
 
     // Create array of ALL references with citation counts (no titles yet)
     const allReferencesWithCounts = uniqueReferences.map((ref, index) => ({
@@ -138,7 +165,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             const totalCount = ref?.totalCount || ref?.data?.length || 0;
             return `${totalCount} citation${totalCount === 1 ? '' : 's'} found for entry ${index + 1}`;
         } else {
-            return `Citations found for entry ${index + 1}`;
+            return `Cited by found for entry ${index + 1}`;
         }
     }).join(' • ');
     html += `</div>`;
@@ -216,7 +243,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     html += `<div class="hidden sm:block">`;
 
     if (validReferencesCount === 0 && commonReferences.length > 0) {
-        html += `<p class="text-center">Citations in common found, but no titles available.</p>`;
+        html += `<p class="text-center">Cited by in common found, but no titles available.</p>`;
     } else {
         // Create table with full width
         html += `<div class="w-full max-w-[1400px] mx-auto">
@@ -224,7 +251,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 <thead bg-gray-50>
                     <tr>
                         <th class="w-[70%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
-                        <th class="w-[10%] text-gray-600 text-center border border-gray-300 px-4 py-2">Citations</th>
+                        <th class="w-[10%] text-gray-600 text-center border border-gray-300 px-4 py-2">Cites</th>
                         <th class="w-[7%] text-gray-600 text-left border border-gray-300 px-4 py-2">Google Scholar</th>
                         <th class="w-[8%] text-gray-600 text-left border border-gray-300 px-4 py-2">DOI</th>
                         <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add to search</th>
@@ -252,7 +279,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                 </td>
                 <td class="break-words py-2 text-center border border-gray-300 p-2">
                     <div class="relative">
-                        <div id="copyMessage-${dois[0]}" class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-md opacity-0 transition-opacity duration-200">Copied!</div>
+                        <div id="copyMessage-${dois[0]}" class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-md opacity-0 transition-opacity duration-200">Copied</div>
                         <button onclick="copyToClipboard('${dois[0]}')" class="text-gray-600 hover:text-blue-600">
                             <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>

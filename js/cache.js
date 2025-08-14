@@ -36,3 +36,54 @@ export function createPreCacheCitations(getTitle, getCitingPubs) {
         }));
     };
 }
+
+// Helper function for pre-caching citation counts
+export function createPreCacheCitationCounts(rateLimiter) {
+    return async function preCacheCitationCounts(citingDois, progressCallback = null) {
+        const uncachedDois = citingDois.filter(doi => {
+            const cacheKey = `citationCount_${doi}`;
+            return getCachedData(cacheKey) === null;
+        });
+
+        if (uncachedDois.length === 0) {
+            console.log('All citation counts already cached');
+            return;
+        }
+
+        console.log(`Pre-caching citation counts for ${uncachedDois.length} DOIs`);
+
+        const citationCountPromises = uncachedDois.map(async (doi, index) => {
+            if (progressCallback) {
+                progressCallback(`Caching citation counts... (${index + 1}/${uncachedDois.length})`);
+            }
+
+            const cacheKey = `citationCount_${doi}`;
+            
+            try {
+                const response = await rateLimiter.add(() => 
+                    fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`)
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = data.message['is-referenced-by-count'] || 0;
+                    setCachedData(cacheKey, count);
+                    console.log(`Cached citation count for ${doi}: ${count}`);
+                    return count;
+                }
+                
+                // Cache 0 for failed requests to avoid repeated API calls
+                setCachedData(cacheKey, 0);
+                return 0;
+            } catch (error) {
+                console.error(`Error fetching citation count for ${doi}:`, error);
+                // Cache 0 for errors to avoid repeated API calls
+                setCachedData(cacheKey, 0);
+                return 0;
+            }
+        });
+
+        await Promise.all(citationCountPromises);
+        console.log(`Finished pre-caching citation counts for ${uncachedDois.length} DOIs`);
+    };
+}
