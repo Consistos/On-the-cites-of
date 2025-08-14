@@ -265,7 +265,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
                         <th class="w-[7%] text-gray-600 text-center border border-gray-300 px-2 py-2 cursor-pointer hover:bg-gray-100 select-none" onclick="sortTable('citations')" id="citations-header">
                             Cited by <span id="citations-sort-indicator" class="ml-1 text-xs">↕</span>
                         </th>
-                        <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Scholar</th>
+                        <th class="w-[5%] text-gray-600 text-center border border-gray-300 px-2 py-2">Google Scholar</th>
                         <th class="w-[6%] text-gray-600 text-center border border-gray-300 px-2 py-2">DOI</th>
                         <th class="w-[6%] text-gray-600 text-center border border-gray-300 px-2 py-2">Add to search</th>
                     </tr>
