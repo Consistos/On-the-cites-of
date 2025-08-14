@@ -248,7 +248,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         // Create table with full width
         html += `<div class="w-full max-w-[1400px] mx-auto">
             <table class="w-full text-sm border-collapse border border-gray-300 mt-8" id="results-table">
-                <thead bg-gray-50>
+                <thead class="bg-white">
                     <tr>
                         <th class="w-[76%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
                         <th class="w-[7%] text-gray-600 text-center border border-gray-300 px-4 py-2">Cites</th>
