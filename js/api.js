@@ -326,63 +326,63 @@ async function batchGetMetadata(dois) {
     if (!dois || dois.length === 0) return {};
     
     const results = {};
-    const batchSize = API_CONFIG.crossref.batchSize;
     
-    // Process DOIs in batches
-    for (let i = 0; i < dois.length; i += batchSize) {
-        const batch = dois.slice(i, i + batchSize);
-        const uncachedDois = batch.filter(doi => {
-            const cached = getCachedData(doi);
-            if (cached && cached.title && cached.journal !== undefined && cached.publishedDate !== undefined) {
-                results[doi] = {
-                    title: cached.title,
-                    journal: cached.journal,
-                    publishedDate: cached.publishedDate
-                };
-                return false;
-            }
-            return true;
-        });
-        
-        if (uncachedDois.length === 0) continue;
-        
+    // Filter out cached DOIs first
+    const uncachedDois = dois.filter(doi => {
+        const cached = getCachedData(doi);
+        if (cached && cached.title && cached.journal !== undefined && cached.publishedDate !== undefined) {
+            results[doi] = {
+                title: cached.title,
+                journal: cached.journal,
+                publishedDate: cached.publishedDate
+            };
+            return false;
+        }
+        return true;
+    });
+    
+    if (uncachedDois.length === 0) return results;
+    
+    // Process uncached DOIs concurrently with rate limiting
+    const metadataPromises = uncachedDois.map(async (doi) => {
         try {
-            const encodedDois = uncachedDois.map(doi => encodeURIComponent(doi.replace(/\s+/g, '')));
-            const url = `https://api.crossref.org/works/${encodedDois.join(',')}?${emailParam}`;
+            const encodedDoi = encodeURIComponent(doi.replace(/\s+/g, ''));
+            const url = `https://api.crossref.org/works/${encodedDoi}?${emailParam}`;
             
             const response = await rateLimiter.add(() => fetch(url));
             const data = await response.json();
             
             if (response.ok && data.message) {
-                const items = Array.isArray(data.message) ? data.message : [data.message];
+                const item = data.message;
+                const title = item?.title?.[0] || "Unknown Title";
+                const journal = item?.['container-title']?.[0] || null;
+                const publishedDate = item?.published?.['date-parts']?.[0]?.[0]?.toString() || 
+                                    item?.['published-online']?.['date-parts']?.[0]?.[0]?.toString() ||
+                                    item?.['published-print']?.['date-parts']?.[0]?.[0]?.toString() ||
+                                    null;
                 
-                items.forEach((item, index) => {
-                    const doi = uncachedDois[index];
-                    if (!doi) return;
-                    
-                    const title = item?.title?.[0] || "Unknown Title";
-                    const journal = item?.['container-title']?.[0] || null;
-                    const publishedDate = item?.published?.['date-parts']?.[0]?.[0]?.toString() || 
-                                        item?.['published-online']?.['date-parts']?.[0]?.[0]?.toString() ||
-                                        item?.['published-print']?.['date-parts']?.[0]?.[0]?.toString() ||
-                                        null;
-                    
-                    const metadata = { title, journal, publishedDate };
-                    results[doi] = metadata;
-                    
-                    // Update cache
-                    const existingData = getCachedData(doi) || {};
-                    setCachedData(doi, { ...existingData, ...metadata });
-                });
+                const metadata = { title, journal, publishedDate };
+                
+                // Update cache
+                const existingData = getCachedData(doi) || {};
+                setCachedData(doi, { ...existingData, ...metadata });
+                
+                return { doi, metadata };
             }
+            
+            return { doi, metadata: { title: "Unknown Title", journal: null, publishedDate: null } };
         } catch (error) {
-            console.error('Error in batch metadata request:', error);
-            // Set default values for failed requests
-            uncachedDois.forEach(doi => {
-                results[doi] = { title: "Unknown Title", journal: null, publishedDate: null };
-            });
+            console.error(`Error fetching metadata for ${doi}:`, error);
+            return { doi, metadata: { title: "Unknown Title", journal: null, publishedDate: null } };
         }
-    }
+    });
+    
+    const metadataResults = await Promise.all(metadataPromises);
+    
+    // Merge results
+    metadataResults.forEach(({ doi, metadata }) => {
+        results[doi] = metadata;
+    });
     
     return results;
 }
@@ -392,55 +392,58 @@ async function batchGetCitationCounts(dois) {
     if (!dois || dois.length === 0) return {};
     
     const results = {};
-    const batchSize = API_CONFIG.crossref.batchSize;
     
-    // Process DOIs in batches
-    for (let i = 0; i < dois.length; i += batchSize) {
-        const batch = dois.slice(i, i + batchSize);
-        const uncachedDois = batch.filter(doi => {
-            const cacheKey = `citationCount_${doi}`;
-            const cached = getCachedData(cacheKey);
-            if (cached !== null && cached !== undefined) {
-                results[doi] = cached;
-                return false;
-            }
-            return true;
-        });
-        
-        if (uncachedDois.length === 0) continue;
-        
+    // Filter out cached DOIs first
+    const uncachedDois = dois.filter(doi => {
+        const cacheKey = `citationCount_${doi}`;
+        const cached = getCachedData(cacheKey);
+        if (cached !== null && cached !== undefined) {
+            results[doi] = cached;
+            return false;
+        }
+        return true;
+    });
+    
+    if (uncachedDois.length === 0) return results;
+    
+    // Process uncached DOIs concurrently with rate limiting
+    const citationCountPromises = uncachedDois.map(async (doi) => {
         try {
-            const encodedDois = uncachedDois.map(doi => encodeURIComponent(doi.replace(/\s+/g, '')));
-            const url = `https://api.crossref.org/works/${encodedDois.join(',')}?${emailParam}`;
+            const encodedDoi = encodeURIComponent(doi.replace(/\s+/g, ''));
+            const url = `https://api.crossref.org/works/${encodedDoi}?${emailParam}`;
             
             const response = await rateLimiter.add(() => fetch(url));
             const data = await response.json();
             
             if (response.ok && data.message) {
-                const items = Array.isArray(data.message) ? data.message : [data.message];
+                const count = data.message?.['is-referenced-by-count'] || 0;
                 
-                items.forEach((item, index) => {
-                    const doi = uncachedDois[index];
-                    if (!doi) return;
-                    
-                    const count = item?.['is-referenced-by-count'] || 0;
-                    results[doi] = count;
-                    
-                    // Cache the result
-                    const cacheKey = `citationCount_${doi}`;
-                    setCachedData(cacheKey, count);
-                });
-            }
-        } catch (error) {
-            console.error('Error in batch citation count request:', error);
-            // Set default values for failed requests
-            uncachedDois.forEach(doi => {
-                results[doi] = 0;
+                // Cache the result
                 const cacheKey = `citationCount_${doi}`;
-                setCachedData(cacheKey, 0);
-            });
+                setCachedData(cacheKey, count);
+                
+                return { doi, count };
+            }
+            
+            // Cache 0 for failed requests
+            const cacheKey = `citationCount_${doi}`;
+            setCachedData(cacheKey, 0);
+            return { doi, count: 0 };
+        } catch (error) {
+            console.error(`Error fetching citation count for ${doi}:`, error);
+            // Cache 0 for errors
+            const cacheKey = `citationCount_${doi}`;
+            setCachedData(cacheKey, 0);
+            return { doi, count: 0 };
         }
-    }
+    });
+    
+    const citationCountResults = await Promise.all(citationCountPromises);
+    
+    // Merge results
+    citationCountResults.forEach(({ doi, count }) => {
+        results[doi] = count;
+    });
     
     return results;
 }

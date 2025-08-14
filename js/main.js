@@ -181,7 +181,14 @@ function getUrlParameter(name) {
 
 async function initialisePage() {
     try {
-        console.log('initialisePage called, isInitialized:', window.isInitialized, 'URL:', window.location.href);
+        console.log('🚀 INIT: initialisePage called');
+        console.log('🚀 INIT: isInitialized:', window.isInitialized);
+        console.log('🚀 INIT: URL:', window.location.href);
+        console.log('🚀 INIT: Search params:', window.location.search);
+        
+        // Check if we have any URL parameters to process
+        const hasParams = window.location.search.length > 0;
+        console.log('🚀 INIT: Has URL parameters:', hasParams);
         
         let index = 1;
         const dois = [];
@@ -190,6 +197,8 @@ async function initialisePage() {
         // Check for both doi and input parameters
         let doi = getUrlParameter(`doi${index}`);
         let inputValue = getUrlParameter(`input${index}`);
+        
+        console.log(`🚀 INIT: Initial URL parameters - doi1: "${doi}", input1: "${inputValue}"`);
 
         const container = document.getElementById('inputContainer');
 
@@ -336,32 +345,49 @@ async function initialisePage() {
 
 // Function to handle browser navigation (back/forward)
 async function handleNavigation(event) {
-    console.log('popstate event fired, current URL:', window.location.href);
+    console.log('🔄 NAVIGATION: popstate event fired');
+    console.log('🔄 NAVIGATION: current URL:', window.location.href);
+    console.log('🔄 NAVIGATION: current search params:', window.location.search);
     
-    // Handle back/forward navigation by reinitializing the page
-    console.log('Handling back/forward navigation, reinitializing...');
-    
-    // Force reinitialize by resetting the flag
-    window.isInitialized = false;
-    
-    // Clear any existing results
-    const resultsDiv = document.getElementById('results');
-    if (resultsDiv) {
-        resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
-    }
-    
-    // Clear all existing input values and reset the container
-    const container = document.getElementById('inputContainer');
-    const existingInputs = container.querySelectorAll('.article-input');
-    existingInputs.forEach(input => {
-        input.value = '';
-        updateClearButtonVisibility(input);
-    });
-    
-    console.log(`Cleared ${existingInputs.length} existing input fields`);
-    
-    // Reinitialize the page with the new URL parameters
-    await initialisePage();
+    // Add a small delay to ensure the URL has fully updated
+    setTimeout(async () => {
+        console.log('🔄 NAVIGATION: Starting reinitialization after delay...');
+        
+        // Force reinitialize by resetting the flag
+        window.isInitialized = false;
+        console.log('🔄 NAVIGATION: Set isInitialized to false');
+        
+        // Clear any existing results
+        const resultsDiv = document.getElementById('results');
+        if (resultsDiv) {
+            resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
+            console.log('🔄 NAVIGATION: Cleared results div');
+        }
+        
+        // Clear all existing input values
+        const container = document.getElementById('inputContainer');
+        if (container) {
+            const existingInputs = container.querySelectorAll('.article-input');
+            existingInputs.forEach((input, index) => {
+                const oldValue = input.value;
+                input.value = '';
+                updateClearButtonVisibility(input);
+                console.log(`🔄 NAVIGATION: Cleared input ${index + 1}: "${oldValue}" → ""`);
+            });
+            console.log(`🔄 NAVIGATION: Cleared ${existingInputs.length} input fields`);
+        } else {
+            console.error('🔄 NAVIGATION: Could not find inputContainer!');
+        }
+        
+        // Reinitialize the page with the new URL parameters
+        console.log('🔄 NAVIGATION: Calling initialisePage...');
+        try {
+            await initialisePage();
+            console.log('🔄 NAVIGATION: ✅ Navigation completed successfully');
+        } catch (error) {
+            console.error('🔄 NAVIGATION: ❌ Error in initialisePage:', error);
+        }
+    }, 10); // Small delay to ensure URL is fully updated
 }
 
 // Export functions and initialization
