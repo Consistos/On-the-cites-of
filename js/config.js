@@ -3,10 +3,10 @@
 // Email obfuscation configuration
 export const EMAIL_CONFIG = {
     parts: ['dbag', 'ory', '@', 'icl', 'oud.com'],
-    getEmail: function() {
+    getEmail: function () {
         return this.parts.join('');
     },
-    getEmailParam: function() {
+    getEmailParam: function () {
         return `mailto=${encodeURIComponent(this.getEmail())}`;
     }
 };

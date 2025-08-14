@@ -71,7 +71,15 @@ async function findCommonCitations(initialDois = null) {
             const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index + 1}=${doi}`).join('&')}`;
             // Record when we last updated the URL to avoid reinitializing
             window.lastUrlUpdate = Date.now();
-            history.replaceState({}, '', newUrl);
+            
+            // Store search state for back/forward navigation
+            const searchState = {
+                type: 'search',
+                dois: dois,
+                timestamp: Date.now(),
+                hasResults: true
+            };
+            history.replaceState(searchState, '', newUrl);
         }
 
         // Step 2: Fetching citations
@@ -162,6 +170,24 @@ async function findCommonCitations(initialDois = null) {
         // Clear progress indicator before showing results
         clearProgressIndicator();
         await displayResults(commonReferences, dois, refCounts, allReferences);
+        
+        // Store search results in history state for back/forward navigation
+        const searchState = {
+            type: 'search',
+            dois: dois,
+            timestamp: Date.now(),
+            hasResults: true,
+            resultsData: {
+                commonReferences: commonReferences,
+                refCounts: refCounts,
+                allReferences: allReferences
+            }
+        };
+        
+        // Update history state with results data
+        const currentUrl = window.location.href;
+        window.lastUrlUpdate = Date.now();
+        history.replaceState(searchState, '', currentUrl);
     } catch (error) {
         clearProgressIndicator();
         resultsDiv.innerHTML = '<div class="text-center text-gray-600">An error occurred: ' + error.message + '</div>';
@@ -258,8 +284,21 @@ async function initialisePage() {
 
             window.isInitialized = true;
 
-            // Trigger search if we loaded DOIs from the URL or input values
-            if (dois.length > 0) {
+            // Check if we have existing search results in history state
+            const state = history.state;
+            const hasStateResults = state && state.type === 'search' && state.hasResults && state.resultsData;
+            
+            // Verify that the state matches the current URL parameters
+            const stateMatchesUrl = hasStateResults && state.dois && 
+                state.dois.length === dois.length && 
+                state.dois.every((doi, index) => doi === dois[index]);
+            
+            if (hasStateResults && stateMatchesUrl) {
+                // Restore results from state instead of re-searching
+                console.log('Restoring search results from browser state');
+                await restoreSearchResults(state);
+            } else if (dois.length > 0) {
+                // Trigger search if we loaded DOIs from the URL
                 findCommonCitations(dois);
             } else if (hasInputValues) {
                 // For input values, trigger a regular search (no pre-resolved DOIs)
@@ -269,6 +308,71 @@ async function initialisePage() {
     } catch (error) {
         console.error('Error in initialisePage:', error);
         showError('Failed to initialize page');
+    }
+}
+
+// Function to restore search results from history state
+async function restoreSearchResults(state) {
+    if (!state || state.type !== 'search' || !state.hasResults || !state.resultsData) {
+        return false;
+    }
+    
+    try {
+        const { commonReferences, refCounts, allReferences } = state.resultsData;
+        const { dois } = state;
+        
+        // Validate that we have the required data
+        if (!commonReferences || !dois || !Array.isArray(commonReferences) || !Array.isArray(dois)) {
+            console.warn('Invalid search results data in state');
+            return false;
+        }
+        
+        console.log(`Restoring search results: ${commonReferences.length} common references for ${dois.length} DOIs`);
+        
+        // Restore the results display
+        await displayResults(commonReferences, dois, refCounts || new Map(), allReferences);
+        return true;
+    } catch (error) {
+        console.error('Error restoring search results:', error);
+        return false;
+    }
+}
+
+// Function to clear search results
+function clearSearchResults() {
+    const resultsDiv = document.getElementById('results');
+    if (resultsDiv) {
+        resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
+    }
+}
+
+// Function to handle browser navigation (back/forward)
+async function handleNavigation() {
+    const state = history.state;
+    
+    // Only reinitialize if this wasn't triggered by our own URL update
+    if (Date.now() - window.lastUrlUpdate > 100) {
+        console.log('Handling navigation with state:', state?.type || 'no state');
+        
+        // Check if we should clear results
+        if (state && state.type === 'clear' && !state.hasResults) {
+            console.log('Clearing search results due to navigation');
+            clearSearchResults();
+            window.isInitialized = false;
+            await initialisePage();
+            return;
+        }
+        
+        // Try to restore search results from state first
+        const restored = await restoreSearchResults(state);
+        
+        if (!restored) {
+            // If we can't restore from state, reinitialize the page
+            console.log('Could not restore from state, reinitializing page');
+            clearSearchResults();
+            window.isInitialized = false;
+            await initialisePage();
+        }
     }
 }
 
@@ -283,5 +387,7 @@ export {
     ensureRemoveButton,
     initialisePage,
     addToPublicationSearch,
-    updateUrlWithCurrentInputs
+    updateUrlWithCurrentInputs,
+    restoreSearchResults,
+    handleNavigation
 };

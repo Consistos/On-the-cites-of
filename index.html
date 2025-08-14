@@ -19,7 +19,8 @@
             ensureRemoveButton,
             initialisePage,
             addToPublicationSearch,
-            updateUrlWithCurrentInputs
+            updateUrlWithCurrentInputs,
+            handleNavigation
         } from './js/main.js';
 
         // Export functions to window for onclick handlers
@@ -47,13 +48,7 @@
         });
 
         // Handle popstate events (back/forward navigation)
-        window.addEventListener('popstate', function() {
-            // Only reinitialise if this wasn't triggered by our own URL update
-            if (Date.now() - window.lastUrlUpdate > 100) {
-                window.isInitialized = false;
-                initialisePage();
-            }
-        });
+        window.addEventListener('popstate', handleNavigation);
 
         // Event listeners for search via Enter key
         document.addEventListener('keypress', function(event) {

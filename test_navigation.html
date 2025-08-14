@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">Navigation Test</h1>
+        <p class="mb-4">This page tests the back/forward navigation functionality.</p>
+        
+        <div class="space-y-4">
+            <div>
+                <a href="index.html" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Go to Main App
+                </a>
+            </div>
+            
+            <div>
+                <a href="index.html?doi1=10.1038%2Fnature12373&doi2=10.1126%2Fscience.1242072" 
+                   class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Test with Sample DOIs
+                </a>
+            </div>
+            
+            <div class="mt-8 p-4 bg-yellow-100 rounded">
+                <h2 class="font-bold mb-2">Test Instructions:</h2>
+                <ol class="list-decimal list-inside space-y-1 text-sm">
+                    <li>Click "Test with Sample DOIs" to load the app with search results</li>
+                    <li>Wait for the search to complete and results to display</li>
+                    <li>Use your browser's back button to return to this page</li>
+                    <li>Use your browser's forward button to return to the results</li>
+                    <li>The results should be restored instantly without re-searching</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

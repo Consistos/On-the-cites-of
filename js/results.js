@@ -353,7 +353,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     window.currentGroupedReferences = groupedReferences;
     window.currentSortColumn = 'citations'; // Default sort by citations (descending)
     window.currentSortDirection = 'desc';
-    
+
     // Initialize sort indicators
     setTimeout(() => {
         updateSortIndicators('citations', 'desc');
@@ -619,7 +619,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
 // Helper functions for sorting
 function extractYear(dateString) {
     if (!dateString || dateString === 'Unknown') return 0;
-    
+
     // Try to extract year from various date formats
     const yearMatch = dateString.match(/(\d{4})/);
     return yearMatch ? parseInt(yearMatch[1]) : 0;
@@ -629,10 +629,10 @@ function updateSortIndicators(activeColumn, direction) {
     // Reset all indicators
     const yearIndicator = document.getElementById('year-sort-indicator');
     const citationsIndicator = document.getElementById('citations-sort-indicator');
-    
+
     if (yearIndicator) yearIndicator.textContent = '↕';
     if (citationsIndicator) citationsIndicator.textContent = '↕';
-    
+
     // Set active indicator
     const activeIndicator = document.getElementById(`${activeColumn}-sort-indicator`);
     if (activeIndicator) {
@@ -688,14 +688,14 @@ function sortTable(column) {
     const tbody = document.getElementById('results-tbody');
     if (tbody) {
         tbody.innerHTML = '';
-        
+
         referencesArray.forEach(ref => {
             const dois = ref.dois;
             const citationCount = ref.citationCount;
             const journal = ref.journal || 'Unknown';
             const publishedDate = ref.publishedDate || 'Unknown';
             const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(ref.title)}`;
-            
+
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td class="break-words py-2 border border-gray-300 p-2">
