@@ -19,5 +19,8 @@ export const API_CONFIG = {
     },
     cache: {
         expiryDays: 7
+    },
+    crossref: {
+        batchSize: 50 // Crossref allows up to 50 DOIs per batch request
     }
 };

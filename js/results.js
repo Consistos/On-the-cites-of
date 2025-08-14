@@ -1,4 +1,4 @@
-import { getTitle, getPublicationMetadata, getCitingPubs, preCacheCitations } from './api.js';
+import { getTitle, getPublicationMetadata, getCitingPubs, preCacheCitations, batchGetCitationCounts, batchGetMetadata } from './api.js';
 import { showProgressIndicator, updateProgressIndicator, clearProgressIndicator } from './ui.js';
 import { getCachedData, setCachedData } from './cache.js';
 
@@ -50,42 +50,22 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     const uncachedRefs = citationCountsFromCache.filter(item => !item.cached);
 
     if (uncachedRefs.length > 0) {
-        console.log(`Found ${uncachedRefs.length} uncached citation counts, fetching from API...`);
+        console.log(`Found ${uncachedRefs.length} uncached citation counts, fetching from API using batch requests...`);
         updateProgressIndicator(`Fetching missing citation counts... (0/${uncachedRefs.length})`, 1, 2);
 
-        // Fetch missing citation counts
-        const missingCountPromises = uncachedRefs.map(async (item, index) => {
-            updateProgressIndicator(`Fetching missing citation counts... (${index + 1}/${uncachedRefs.length})`, 1, 2);
-
-            const cacheKey = `citationCount_${item.citing}`;
-            try {
-                const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(item.citing)}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    const count = data.message['is-referenced-by-count'] || 0;
-                    setCachedData(cacheKey, count);
-                    console.log(`Fetched and cached citation count for ${item.citing}: ${count}`);
-                    return count;
-                }
-                setCachedData(cacheKey, 0);
-                return 0;
-            } catch (error) {
-                console.error(`Error fetching citation count for ${item.citing}:`, error);
-                setCachedData(cacheKey, 0);
-                return 0;
-            }
-        });
-
-        const missingCounts = await Promise.all(missingCountPromises);
+        // Use batch request to fetch missing citation counts
+        const uncachedDois = uncachedRefs.map(item => item.citing);
+        const batchResults = await batchGetCitationCounts(uncachedDois);
 
         // Update the citation counts array with fetched values
-        let missingIndex = 0;
         citationCountsFromCache.forEach(item => {
             if (!item.cached) {
-                item.count = missingCounts[missingIndex++];
+                item.count = batchResults[item.citing] || 0;
                 item.cached = true;
             }
         });
+
+        console.log(`Fetched ${uncachedRefs.length} citation counts using batch requests`);
     }
 
     const citationCounts = citationCountsFromCache.map(item => item.count);
@@ -108,16 +88,16 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
     async function renderReferences(start, end) {
         const batch = window.allSortedReferences.slice(start, end);
 
-        // Fetch metadata for this batch
-        const metadataPromises = batch.map(ref => getPublicationMetadata(ref.citing));
-        const metadataArray = await Promise.all(metadataPromises);
+        // Fetch metadata for this batch using batch request
+        const dois = batch.map(ref => ref.citing);
+        const metadataResults = await batchGetMetadata(dois);
 
         // Create references with metadata for this batch
-        const batchWithMetadata = batch.map((ref, index) => ({
+        const batchWithMetadata = batch.map(ref => ({
             citing: ref.citing,
-            title: metadataArray[index].title,
-            journal: metadataArray[index].journal,
-            publishedDate: metadataArray[index].publishedDate,
+            title: metadataResults[ref.citing]?.title || 'Unknown Title',
+            journal: metadataResults[ref.citing]?.journal,
+            publishedDate: metadataResults[ref.citing]?.publishedDate,
             citationCount: ref.citationCount
         })).filter(ref => ref.title !== 'Title not available' && ref.title !== 'Unknown Title');
 

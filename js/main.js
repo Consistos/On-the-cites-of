@@ -5,7 +5,8 @@ import {
     handleCrossrefResponse,
     handleCrossrefError,
     preCacheCitations,
-    preCacheCitationCounts
+    preCacheCitationCounts,
+    batchGetMetadata
 } from './api.js';
 import { getCachedData, setCachedData } from './cache.js';
 import { getDOI, extractArXivDOI, extractPubMedDOI } from './identifiers.js';
@@ -194,15 +195,32 @@ async function initialisePage() {
 
         // Only initialize if we haven't already
         if (!window.isInitialized) {
+            // Count how many URL parameters we have
+            let paramCount = 0;
+            let tempIndex = 1;
+            while (getUrlParameter(`doi${tempIndex}`) || getUrlParameter(`input${tempIndex}`)) {
+                paramCount++;
+                tempIndex++;
+            }
+            
             // Get existing inputs
             let existingInputs = container.querySelectorAll('.input-group');
 
-            // If no inputs exist, add the initial two inputs
+            // If no inputs exist, add the initial inputs
             if (existingInputs.length === 0) {
-                addInput();
-                addInput();
+                // Add at least 2 inputs, or more if we have URL parameters
+                const inputsToAdd = Math.max(2, paramCount);
+                for (let i = 0; i < inputsToAdd; i++) {
+                    addInput();
+                }
                 existingInputs = container.querySelectorAll('.input-group');
             } else {
+                // Ensure we have enough inputs for URL parameters
+                while (existingInputs.length < paramCount) {
+                    addInput();
+                    existingInputs = container.querySelectorAll('.input-group');
+                }
+                
                 // Ensure all existing inputs have remove buttons
                 existingInputs.forEach(inputGroup => {
                     ensureRemoveButton(inputGroup);
@@ -211,6 +229,8 @@ async function initialisePage() {
 
             // Process URL parameters if they exist
             while (doi || inputValue) {
+                console.log(`Processing URL parameter ${index}: doi=${doi}, input=${inputValue}`);
+                
                 // Add new input if needed
                 if (index > existingInputs.length) {
                     addInput();
@@ -218,6 +238,7 @@ async function initialisePage() {
                 }
 
                 const textarea = existingInputs[index - 1].querySelector('.article-input');
+                console.log(`Found textarea for index ${index}:`, textarea);
 
                 if (doi) {
                     // It's a DOI parameter - handle as before
@@ -241,12 +262,16 @@ async function initialisePage() {
                         console.log(`Citations already cached for DOI: ${doi}, skipping pre-caching in initialisePage`);
                     }
 
-                    textarea.value = title && title !== "Unknown Title" ? title : doi;
+                    const displayValue = title && title !== "Unknown Title" ? title : doi;
+                    console.log(`Setting textarea value to: ${displayValue}`);
+                    textarea.value = displayValue;
                 } else if (inputValue) {
                     // It's an input parameter - just display it
                     // Mark that we have input values to trigger search later
                     hasInputValues = true;
-                    textarea.value = decodeURIComponent(inputValue);
+                    const displayValue = decodeURIComponent(inputValue);
+                    console.log(`Setting textarea value to: ${displayValue}`);
+                    textarea.value = displayValue;
                 }
 
                 updateClearButtonVisibility(textarea);
@@ -254,6 +279,40 @@ async function initialisePage() {
                 index++;
                 doi = getUrlParameter(`doi${index}`);
                 inputValue = getUrlParameter(`input${index}`);
+            }
+
+            // Clear any remaining input fields that don't have URL parameters
+            const totalInputs = container.querySelectorAll('.input-group');
+            for (let i = index - 1; i < totalInputs.length; i++) {
+                const textarea = totalInputs[i].querySelector('.article-input');
+                if (textarea && textarea.value && !getUrlParameter(`doi${i + 1}`) && !getUrlParameter(`input${i + 1}`)) {
+                    console.log(`Clearing unused input field ${i + 1}`);
+                    textarea.value = '';
+                    updateClearButtonVisibility(textarea);
+                }
+            }
+
+            // If we have multiple DOIs, batch fetch their metadata for better performance
+            if (dois.length > 1) {
+                console.log(`Batch fetching metadata for ${dois.length} DOIs`);
+                const metadataResults = await batchGetMetadata(dois);
+                
+                // Update textareas with batch-fetched titles, but only if they don't already have good titles
+                dois.forEach((doi, index) => {
+                    const textarea = existingInputs[index].querySelector('.article-input');
+                    const currentValue = textarea.value;
+                    
+                    // Only update if current value is the DOI itself (not a title)
+                    if (currentValue === doi) {
+                        const metadata = metadataResults[doi];
+                        const title = metadata?.title;
+                        if (title && title !== "Unknown Title") {
+                            console.log(`Updating textarea ${index + 1} with batch-fetched title: ${title}`);
+                            textarea.value = title;
+                            updateClearButtonVisibility(textarea);
+                        }
+                    }
+                });
             }
 
             // Update remove buttons after all inputs are set up
@@ -290,6 +349,16 @@ async function handleNavigation(event) {
     if (resultsDiv) {
         resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
     }
+    
+    // Clear all existing input values and reset the container
+    const container = document.getElementById('inputContainer');
+    const existingInputs = container.querySelectorAll('.article-input');
+    existingInputs.forEach(input => {
+        input.value = '';
+        updateClearButtonVisibility(input);
+    });
+    
+    console.log(`Cleared ${existingInputs.length} existing input fields`);
     
     // Reinitialize the page with the new URL parameters
     await initialisePage();

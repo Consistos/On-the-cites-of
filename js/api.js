@@ -321,11 +321,129 @@ async function loadMoreCitations(doi, offset) {
     return await getCitingPubs(doi, offset);
 }
 
-// Create preCacheCitations function with required dependencies
-const preCacheCitations = createPreCacheCitations(getTitle, getCitingPubs);
+// Batch request function for Crossref metadata
+async function batchGetMetadata(dois) {
+    if (!dois || dois.length === 0) return {};
+    
+    const results = {};
+    const batchSize = API_CONFIG.crossref.batchSize;
+    
+    // Process DOIs in batches
+    for (let i = 0; i < dois.length; i += batchSize) {
+        const batch = dois.slice(i, i + batchSize);
+        const uncachedDois = batch.filter(doi => {
+            const cached = getCachedData(doi);
+            if (cached && cached.title && cached.journal !== undefined && cached.publishedDate !== undefined) {
+                results[doi] = {
+                    title: cached.title,
+                    journal: cached.journal,
+                    publishedDate: cached.publishedDate
+                };
+                return false;
+            }
+            return true;
+        });
+        
+        if (uncachedDois.length === 0) continue;
+        
+        try {
+            const encodedDois = uncachedDois.map(doi => encodeURIComponent(doi.replace(/\s+/g, '')));
+            const url = `https://api.crossref.org/works/${encodedDois.join(',')}?${emailParam}`;
+            
+            const response = await rateLimiter.add(() => fetch(url));
+            const data = await response.json();
+            
+            if (response.ok && data.message) {
+                const items = Array.isArray(data.message) ? data.message : [data.message];
+                
+                items.forEach((item, index) => {
+                    const doi = uncachedDois[index];
+                    if (!doi) return;
+                    
+                    const title = item?.title?.[0] || "Unknown Title";
+                    const journal = item?.['container-title']?.[0] || null;
+                    const publishedDate = item?.published?.['date-parts']?.[0]?.[0]?.toString() || 
+                                        item?.['published-online']?.['date-parts']?.[0]?.[0]?.toString() ||
+                                        item?.['published-print']?.['date-parts']?.[0]?.[0]?.toString() ||
+                                        null;
+                    
+                    const metadata = { title, journal, publishedDate };
+                    results[doi] = metadata;
+                    
+                    // Update cache
+                    const existingData = getCachedData(doi) || {};
+                    setCachedData(doi, { ...existingData, ...metadata });
+                });
+            }
+        } catch (error) {
+            console.error('Error in batch metadata request:', error);
+            // Set default values for failed requests
+            uncachedDois.forEach(doi => {
+                results[doi] = { title: "Unknown Title", journal: null, publishedDate: null };
+            });
+        }
+    }
+    
+    return results;
+}
 
-// Create preCacheCitationCounts function with required dependencies
-const preCacheCitationCounts = createPreCacheCitationCounts(rateLimiter);
+// Batch request function for citation counts
+async function batchGetCitationCounts(dois) {
+    if (!dois || dois.length === 0) return {};
+    
+    const results = {};
+    const batchSize = API_CONFIG.crossref.batchSize;
+    
+    // Process DOIs in batches
+    for (let i = 0; i < dois.length; i += batchSize) {
+        const batch = dois.slice(i, i + batchSize);
+        const uncachedDois = batch.filter(doi => {
+            const cacheKey = `citationCount_${doi}`;
+            const cached = getCachedData(cacheKey);
+            if (cached !== null && cached !== undefined) {
+                results[doi] = cached;
+                return false;
+            }
+            return true;
+        });
+        
+        if (uncachedDois.length === 0) continue;
+        
+        try {
+            const encodedDois = uncachedDois.map(doi => encodeURIComponent(doi.replace(/\s+/g, '')));
+            const url = `https://api.crossref.org/works/${encodedDois.join(',')}?${emailParam}`;
+            
+            const response = await rateLimiter.add(() => fetch(url));
+            const data = await response.json();
+            
+            if (response.ok && data.message) {
+                const items = Array.isArray(data.message) ? data.message : [data.message];
+                
+                items.forEach((item, index) => {
+                    const doi = uncachedDois[index];
+                    if (!doi) return;
+                    
+                    const count = item?.['is-referenced-by-count'] || 0;
+                    results[doi] = count;
+                    
+                    // Cache the result
+                    const cacheKey = `citationCount_${doi}`;
+                    setCachedData(cacheKey, count);
+                });
+            }
+        } catch (error) {
+            console.error('Error in batch citation count request:', error);
+            // Set default values for failed requests
+            uncachedDois.forEach(doi => {
+                results[doi] = 0;
+                const cacheKey = `citationCount_${doi}`;
+                setCachedData(cacheKey, 0);
+            });
+        }
+    }
+    
+    return results;
+}
 
 // Function to get publication metadata (title, journal, date)
 async function getPublicationMetadata(doi) {
@@ -398,6 +516,12 @@ async function getPublicationMetadata(doi) {
     }
 }
 
+// Create preCacheCitations function with required dependencies
+const preCacheCitations = createPreCacheCitations(getTitle, getCitingPubs);
+
+// Create preCacheCitationCounts function with required dependencies
+const preCacheCitationCounts = createPreCacheCitationCounts(rateLimiter, batchGetCitationCounts);
+
 export {
     getTitle,
     getPublicationMetadata,
@@ -407,5 +531,7 @@ export {
     handleCrossrefResponse,
     handleCrossrefError,
     preCacheCitations,
-    preCacheCitationCounts
+    preCacheCitationCounts,
+    batchGetMetadata,
+    batchGetCitationCounts
 };

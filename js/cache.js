@@ -39,8 +39,8 @@ export function createPreCacheCitations(getTitle, getCitingPubs) {
     };
 }
 
-// Helper function for pre-caching citation counts
-export function createPreCacheCitationCounts(rateLimiter) {
+// Helper function for pre-caching citation counts using batch requests
+export function createPreCacheCitationCounts(rateLimiter, batchGetCitationCounts = null) {
     return async function preCacheCitationCounts(citingDois, progressCallback = null) {
         const uncachedDois = citingDois.filter(doi => {
             const cacheKey = `citationCount_${doi}`;
@@ -54,6 +54,22 @@ export function createPreCacheCitationCounts(rateLimiter) {
 
         console.log(`Pre-caching citation counts for ${uncachedDois.length} DOIs`);
 
+        if (progressCallback) {
+            progressCallback(`Caching citation counts... (0/${uncachedDois.length})`);
+        }
+
+        // Use batch function if available, otherwise fall back to individual requests
+        if (batchGetCitationCounts) {
+            try {
+                await batchGetCitationCounts(uncachedDois);
+                console.log(`Finished pre-caching citation counts for ${uncachedDois.length} DOIs using batch requests`);
+                return;
+            } catch (error) {
+                console.error('Batch citation count request failed, falling back to individual requests:', error);
+            }
+        }
+
+        // Fallback to individual requests
         const citationCountPromises = uncachedDois.map(async (doi, index) => {
             if (progressCallback) {
                 progressCallback(`Caching citation counts... (${index + 1}/${uncachedDois.length})`);
