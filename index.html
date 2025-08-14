@@ -33,6 +33,7 @@
         window.ensureRemoveButton = ensureRemoveButton;
         window.addToPublicationSearch = addToPublicationSearch;
         window.updateUrlWithCurrentInputs = updateUrlWithCurrentInputs;
+        window.handleNavigation = handleNavigation;
 
         // Initialize page when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
@@ -47,11 +48,7 @@
         });
 
         // Handle popstate events (back/forward navigation)
-        console.log('🔧 SETUP: Adding popstate event listener');
         window.addEventListener('popstate', handleNavigation);
-        
-        // Test that the handler is attached
-        console.log('🔧 SETUP: Navigation handler attached:', typeof handleNavigation);
 
         // Event listeners for search via Enter key
         document.addEventListener('keypress', function(event) {
@@ -109,13 +106,7 @@
                 </button>
             </div>
             
-            <!-- Debug button for testing navigation -->
-            <div class="flex justify-center mt-4">
-                <button onclick="console.log('🧪 TEST: Manual navigation test'); window.history.pushState({}, '', '?doi1=10.1038%2Fnature12373'); window.dispatchEvent(new PopStateEvent('popstate'));" 
-                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 text-sm rounded">
-                    🧪 Test Navigation
-                </button>
-            </div>
+
 
         </div>
 

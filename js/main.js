@@ -181,14 +181,7 @@ function getUrlParameter(name) {
 
 async function initialisePage() {
     try {
-        console.log('🚀 INIT: initialisePage called');
-        console.log('🚀 INIT: isInitialized:', window.isInitialized);
-        console.log('🚀 INIT: URL:', window.location.href);
-        console.log('🚀 INIT: Search params:', window.location.search);
-        
-        // Check if we have any URL parameters to process
-        const hasParams = window.location.search.length > 0;
-        console.log('🚀 INIT: Has URL parameters:', hasParams);
+        console.log('Initializing page, URL:', window.location.href);
         
         let index = 1;
         const dois = [];
@@ -197,8 +190,6 @@ async function initialisePage() {
         // Check for both doi and input parameters
         let doi = getUrlParameter(`doi${index}`);
         let inputValue = getUrlParameter(`input${index}`);
-        
-        console.log(`🚀 INIT: Initial URL parameters - doi1: "${doi}", input1: "${inputValue}"`);
 
         const container = document.getElementById('inputContainer');
 
@@ -238,8 +229,6 @@ async function initialisePage() {
 
             // Process URL parameters if they exist
             while (doi || inputValue) {
-                console.log(`Processing URL parameter ${index}: doi=${doi}, input=${inputValue}`);
-                
                 // Add new input if needed
                 if (index > existingInputs.length) {
                     addInput();
@@ -247,7 +236,6 @@ async function initialisePage() {
                 }
 
                 const textarea = existingInputs[index - 1].querySelector('.article-input');
-                console.log(`Found textarea for index ${index}:`, textarea);
 
                 if (doi) {
                     // It's a DOI parameter - handle as before
@@ -272,14 +260,12 @@ async function initialisePage() {
                     }
 
                     const displayValue = title && title !== "Unknown Title" ? title : doi;
-                    console.log(`Setting textarea value to: ${displayValue}`);
                     textarea.value = displayValue;
                 } else if (inputValue) {
                     // It's an input parameter - just display it
                     // Mark that we have input values to trigger search later
                     hasInputValues = true;
                     const displayValue = decodeURIComponent(inputValue);
-                    console.log(`Setting textarea value to: ${displayValue}`);
                     textarea.value = displayValue;
                 }
 
@@ -295,7 +281,6 @@ async function initialisePage() {
             for (let i = index - 1; i < totalInputs.length; i++) {
                 const textarea = totalInputs[i].querySelector('.article-input');
                 if (textarea && textarea.value && !getUrlParameter(`doi${i + 1}`) && !getUrlParameter(`input${i + 1}`)) {
-                    console.log(`Clearing unused input field ${i + 1}`);
                     textarea.value = '';
                     updateClearButtonVisibility(textarea);
                 }
@@ -316,7 +301,6 @@ async function initialisePage() {
                         const metadata = metadataResults[doi];
                         const title = metadata?.title;
                         if (title && title !== "Unknown Title") {
-                            console.log(`Updating textarea ${index + 1} with batch-fetched title: ${title}`);
                             textarea.value = title;
                             updateClearButtonVisibility(textarea);
                         }
@@ -345,49 +329,37 @@ async function initialisePage() {
 
 // Function to handle browser navigation (back/forward)
 async function handleNavigation(event) {
-    console.log('🔄 NAVIGATION: popstate event fired');
-    console.log('🔄 NAVIGATION: current URL:', window.location.href);
-    console.log('🔄 NAVIGATION: current search params:', window.location.search);
+    console.log('Navigation: popstate event fired, URL:', window.location.href);
     
     // Add a small delay to ensure the URL has fully updated
     setTimeout(async () => {
-        console.log('🔄 NAVIGATION: Starting reinitialization after delay...');
-        
         // Force reinitialize by resetting the flag
         window.isInitialized = false;
-        console.log('🔄 NAVIGATION: Set isInitialized to false');
         
         // Clear any existing results
         const resultsDiv = document.getElementById('results');
         if (resultsDiv) {
             resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
-            console.log('🔄 NAVIGATION: Cleared results div');
         }
         
         // Clear all existing input values
         const container = document.getElementById('inputContainer');
         if (container) {
             const existingInputs = container.querySelectorAll('.article-input');
-            existingInputs.forEach((input, index) => {
-                const oldValue = input.value;
+            existingInputs.forEach(input => {
                 input.value = '';
                 updateClearButtonVisibility(input);
-                console.log(`🔄 NAVIGATION: Cleared input ${index + 1}: "${oldValue}" → ""`);
             });
-            console.log(`🔄 NAVIGATION: Cleared ${existingInputs.length} input fields`);
-        } else {
-            console.error('🔄 NAVIGATION: Could not find inputContainer!');
         }
         
         // Reinitialize the page with the new URL parameters
-        console.log('🔄 NAVIGATION: Calling initialisePage...');
         try {
             await initialisePage();
-            console.log('🔄 NAVIGATION: ✅ Navigation completed successfully');
+            console.log('Navigation completed successfully');
         } catch (error) {
-            console.error('🔄 NAVIGATION: ❌ Error in initialisePage:', error);
+            console.error('Navigation error:', error);
         }
-    }, 10); // Small delay to ensure URL is fully updated
+    }, 10);
 }
 
 // Export functions and initialization
