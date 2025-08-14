@@ -207,8 +207,7 @@ async function updateUrlWithCurrentInputs() {
         if (nonEmptyInputs.length === 0) {
             // Clear URL parameters if no inputs
             const newUrl = window.location.pathname;
-            window.lastUrlUpdate = Date.now();
-            
+            console.log('UI cleared URL to:', newUrl);
             history.replaceState({}, '', newUrl);
             return;
         }
@@ -231,8 +230,7 @@ async function updateUrlWithCurrentInputs() {
         });
 
         const newUrl = `${window.location.pathname}?${params.toString()}`;
-        window.lastUrlUpdate = Date.now();
-        
+        console.log('UI updated URL to:', newUrl);
         history.replaceState({}, '', newUrl);
     } catch (error) {
         console.error('Error updating URL with current inputs:', error);

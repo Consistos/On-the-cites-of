@@ -69,9 +69,10 @@ async function findCommonCitations(initialDois = null) {
             // Update URL with DOIs only if they weren't provided initially
             const encodedDois = dois.map(doi => encodeURIComponent(doi));
             const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index + 1}=${doi}`).join('&')}`;
-            // Record when we last updated the URL to avoid reinitializing
-            window.lastUrlUpdate = Date.now();
-            history.replaceState({}, '', newUrl);
+            
+            // Use pushState to create a new history entry that can be navigated back to
+            console.log('Pushing new URL to history:', newUrl);
+            history.pushState({}, '', newUrl);
         }
 
         // Step 2: Fetching citations
@@ -179,6 +180,8 @@ function getUrlParameter(name) {
 
 async function initialisePage() {
     try {
+        console.log('initialisePage called, isInitialized:', window.isInitialized, 'URL:', window.location.href);
+        
         let index = 1;
         const dois = [];
         let hasInputValues = false;
@@ -273,20 +276,23 @@ async function initialisePage() {
 }
 
 // Function to handle browser navigation (back/forward)
-async function handleNavigation() {
-    // Only reinitialize if this wasn't triggered by our own URL update
-    if (Date.now() - window.lastUrlUpdate > 100) {
-        console.log('Handling back/forward navigation, reinitializing page');
-        
-        // Clear results and reinitialize the page with new URL parameters
-        const resultsDiv = document.getElementById('results');
-        if (resultsDiv) {
-            resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
-        }
-        
-        window.isInitialized = false;
-        await initialisePage();
+async function handleNavigation(event) {
+    console.log('popstate event fired, current URL:', window.location.href);
+    
+    // Handle back/forward navigation by reinitializing the page
+    console.log('Handling back/forward navigation, reinitializing...');
+    
+    // Force reinitialize by resetting the flag
+    window.isInitialized = false;
+    
+    // Clear any existing results
+    const resultsDiv = document.getElementById('results');
+    if (resultsDiv) {
+        resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
     }
+    
+    // Reinitialize the page with the new URL parameters
+    await initialisePage();
 }
 
 // Export functions and initialization

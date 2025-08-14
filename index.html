@@ -37,7 +37,6 @@
         // Initialize page when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             window.isInitialized = false;
-            window.lastUrlUpdate = Date.now();
             initialisePage();
             document.querySelectorAll('.article-input').forEach(textarea => {
                 textarea.addEventListener('input', function() {
