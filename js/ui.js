@@ -209,13 +209,7 @@ async function updateUrlWithCurrentInputs() {
             const newUrl = window.location.pathname;
             window.lastUrlUpdate = Date.now();
             
-            // Clear search state when clearing inputs
-            const clearState = {
-                type: 'clear',
-                timestamp: Date.now(),
-                hasResults: false
-            };
-            history.replaceState(clearState, '', newUrl);
+            history.replaceState({}, '', newUrl);
             return;
         }
 
@@ -239,13 +233,7 @@ async function updateUrlWithCurrentInputs() {
         const newUrl = `${window.location.pathname}?${params.toString()}`;
         window.lastUrlUpdate = Date.now();
         
-        // Preserve existing state when updating URL
-        const currentState = history.state || {};
-        const newState = {
-            ...currentState,
-            timestamp: Date.now()
-        };
-        history.replaceState(newState, '', newUrl);
+        history.replaceState({}, '', newUrl);
     } catch (error) {
         console.error('Error updating URL with current inputs:', error);
     }
