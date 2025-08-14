@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Input Values</title>
+</head>
+<body>
+    <h1>Test Input Values Functionality</h1>
+    
+    <h2>Test Cases:</h2>
+    <ul>
+        <li><a href="index.html?input1=Machine%20learning%20in%20healthcare&input2=Deep%20learning%20applications">Test with input parameters (should trigger search)</a></li>
+        <li><a href="index.html?doi1=10.1038/nature12373&doi2=10.1126/science.1242072">Test with DOI parameters (should trigger search)</a></li>
+        <li><a href="index.html?input1=Artificial%20intelligence&doi2=10.1038/nature12373">Test with mixed parameters (should trigger search)</a></li>
+    </ul>
+    
+    <h2>Expected Behavior:</h2>
+    <p>All three test cases above should automatically trigger a search when the page loads, just like DOI parameters did before.</p>
+    
+    <h2>Add to Search Button Test:</h2>
+    <p>When you click "Add" buttons in search results, it should now automatically trigger a new search with the added publication.</p>
+</body>
+</html>

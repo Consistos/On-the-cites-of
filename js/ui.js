@@ -190,6 +190,12 @@ function addToPublicationSearch(title, doi) {
     updateUrlWithCurrentInputs().catch(error => {
         console.error('Error updating URL:', error);
     });
+
+    // Trigger search automatically like DOIs do
+    // Import findCommonCitations dynamically to avoid circular dependency
+    if (window.findCommonCitations) {
+        window.findCommonCitations();
+    }
 }
 
 // Function to update URL parameters with all current input values
