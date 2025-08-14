@@ -253,7 +253,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         html += `<p class="text-center">Citations in common found, but no titles available.</p>`;
     } else {
         // Create table with full width
-        html += `<div class="w-full max-w-[1400px] mx-auto">
+        html += `<div class="w-full max-w-[1800px] mx-auto">
             <table class="w-full text-sm border-collapse border border-gray-300 mt-8" id="results-table">
                 <thead class="bg-white">
                     <tr>
