@@ -163,7 +163,7 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
         if (allReferences && allReferences[index]) {
             const ref = allReferences[index];
             const totalCount = ref?.totalCount || ref?.data?.length || 0;
-            return `${totalCount} citation${totalCount === 1 ? '' : 's'} publications citing entry ${index + 1}`;
+            return `${totalCount} publications citing entry ${index + 1}`;
         } else {
             return `Publications citing entry ${index + 1}`;
         }
