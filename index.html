@@ -59,11 +59,7 @@
 
         // Handle popstate events (back/forward navigation)
         window.addEventListener('popstate', function(event) {
-            console.log('=== POPSTATE EVENT FIRED ===');
-            console.log('Event:', event);
-            console.log('Current URL:', window.location.href);
-            console.log('Event state:', event.state);
-            console.log('Initial load complete:', window.initialLoadComplete);
+            console.log('=== POPSTATE EVENT DETECTED ===');
             handleNavigation(event);
         });
         
