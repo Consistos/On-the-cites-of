@@ -237,8 +237,8 @@ async function displayResults(commonReferences, dois, refCounts, allReferences =
             <table class="w-full text-sm border-collapse border border-gray-300 mt-8" id="results-table">
                 <thead class="bg-white">
                     <tr>
-                        <th class="w-[50%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
-                        <th class="w-[8%] text-gray-600 text-center border border-gray-300 px-2 py-2 cursor-pointer hover:bg-gray-100 select-none" onclick="sortTable('year')" id="year-header">
+                        <th class="w-[52%] text-gray-600 text-left border border-gray-300 px-4 py-2">Title</th>
+                        <th class="w-[6%] text-gray-600 text-center border border-gray-300 px-2 py-2 cursor-pointer hover:bg-gray-100 select-none" onclick="sortTable('year')" id="year-header">
                             Year <span id="year-sort-indicator" class="ml-1 text-xs">↕</span>
                         </th>
                         <th class="w-[15%] text-gray-600 text-left border border-gray-300 px-2 py-2">Journal</th>

@@ -38,7 +38,13 @@
         // Initialize page when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             window.isInitialized = false;
-            initialisePage();
+            window.isNavigating = false;
+            window.initialLoadComplete = false;
+            
+            initialisePage().then(() => {
+                window.initialLoadComplete = true;
+            });
+            
             document.querySelectorAll('.article-input').forEach(textarea => {
                 textarea.addEventListener('input', function() {
                     updateClearButtonVisibility(this);
@@ -48,7 +54,10 @@
         });
 
         // Handle popstate events (back/forward navigation)
-        window.addEventListener('popstate', handleNavigation);
+        // Add a small delay to avoid handling the initial page load as navigation
+        setTimeout(() => {
+            window.addEventListener('popstate', handleNavigation);
+        }, 100);
 
         // Event listeners for search via Enter key
         document.addEventListener('keypress', function(event) {

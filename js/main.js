@@ -72,8 +72,11 @@ async function findCommonCitations(initialDois = null) {
             const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index + 1}=${doi}`).join('&')}`;
             
             // Use pushState to create a new history entry that can be navigated back to
-            console.log('Pushing new URL to history:', newUrl);
-            history.pushState({}, '', newUrl);
+            // Only push if the URL is actually different from current URL
+            if (newUrl !== window.location.href) {
+                console.log('Pushing new URL to history:', newUrl);
+                history.pushState({ searchPerformed: true, dois: dois }, '', newUrl);
+            }
         }
 
         // Step 2: Fetching citations
@@ -331,8 +334,21 @@ async function initialisePage() {
 async function handleNavigation(event) {
     console.log('Navigation: popstate event fired, URL:', window.location.href);
     
-    // Add a small delay to ensure the URL has fully updated
-    setTimeout(async () => {
+    // Don't handle navigation during initial page load
+    if (!window.initialLoadComplete) {
+        console.log('Initial load not complete, skipping navigation handling');
+        return;
+    }
+    
+    // Prevent multiple simultaneous navigation events
+    if (window.isNavigating) {
+        console.log('Navigation already in progress, skipping...');
+        return;
+    }
+    
+    window.isNavigating = true;
+    
+    try {
         // Force reinitialize by resetting the flag
         window.isInitialized = false;
         
@@ -352,14 +368,20 @@ async function handleNavigation(event) {
             });
         }
         
+        // Clear any global state that might interfere
+        window.allSortedReferences = null;
+        window.currentPage = 1;
+        window.currentGroupedReferences = null;
+        
         // Reinitialize the page with the new URL parameters
-        try {
-            await initialisePage();
-            console.log('Navigation completed successfully');
-        } catch (error) {
-            console.error('Navigation error:', error);
-        }
-    }, 10);
+        await initialisePage();
+        console.log('Navigation completed successfully');
+    } catch (error) {
+        console.error('Navigation error:', error);
+        showError('Failed to navigate to the requested page');
+    } finally {
+        window.isNavigating = false;
+    }
 }
 
 // Export functions and initialization

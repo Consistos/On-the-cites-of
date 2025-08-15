@@ -194,7 +194,10 @@ function addToPublicationSearch(title, doi) {
     // Trigger search automatically like DOIs do
     // Import findCommonCitations dynamically to avoid circular dependency
     if (window.findCommonCitations) {
-        window.findCommonCitations();
+        // Use a small delay to ensure URL is updated first
+        setTimeout(() => {
+            window.findCommonCitations();
+        }, 50);
     }
 }
 
@@ -208,7 +211,7 @@ async function updateUrlWithCurrentInputs() {
             // Clear URL parameters if no inputs
             const newUrl = window.location.pathname;
             console.log('UI cleared URL to:', newUrl);
-            history.replaceState({}, '', newUrl);
+            history.replaceState({ inputUpdate: true }, '', newUrl);
             return;
         }
 
@@ -231,7 +234,8 @@ async function updateUrlWithCurrentInputs() {
 
         const newUrl = `${window.location.pathname}?${params.toString()}`;
         console.log('UI updated URL to:', newUrl);
-        history.replaceState({}, '', newUrl);
+        // Use replaceState for input changes to avoid creating history entries
+        history.replaceState({ inputUpdate: true }, '', newUrl);
     } catch (error) {
         console.error('Error updating URL with current inputs:', error);
     }
