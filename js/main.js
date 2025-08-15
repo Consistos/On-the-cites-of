@@ -29,11 +29,21 @@ import {
 import { displayResults } from './results.js';
 
 async function findCommonCitations(initialDois = null) {
+    console.log('=== findCommonCitations called ===');
+    console.log('initialDois:', initialDois);
+    
     const inputs = document.getElementsByClassName('article-input');
     const resultsDiv = document.getElementById('results');
     const nonEmptyInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
 
+    console.log('Input analysis:', {
+        totalInputs: inputs.length,
+        nonEmptyInputs: nonEmptyInputs.length,
+        inputValues: Array.from(nonEmptyInputs).map(input => input.value.trim())
+    });
+
     if (nonEmptyInputs.length === 0) {
+        console.log('No non-empty inputs found, showing error message');
         resultsDiv.innerHTML = '<div class="text-center text-gray-600">Please enter at least one title or DOI.</div>';
         return;
     }
@@ -189,6 +199,7 @@ function getUrlParameter(name) {
 async function initialisePage() {
     try {
         console.log('Initializing page, URL:', window.location.href);
+        console.log('URL search params:', window.location.search);
         
         let index = 1;
         const dois = [];
@@ -197,6 +208,12 @@ async function initialisePage() {
         // Check for both doi and input parameters
         let doi = getUrlParameter(`doi${index}`);
         let inputValue = getUrlParameter(`input${index}`);
+        
+        console.log('Initial parameter check:', { doi, inputValue });
+        
+        // Debug: Check all URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        console.log('All URL parameters:', Object.fromEntries(urlParams.entries()));
 
         const container = document.getElementById('inputContainer');
 
@@ -242,7 +259,10 @@ async function initialisePage() {
             }
 
             // Process URL parameters if they exist
+            console.log('Processing URL parameters...');
             while (doi || inputValue) {
+                console.log(`Processing parameter ${index}:`, { doi, inputValue });
+                
                 // Add new input if needed
                 if (index > existingInputs.length) {
                     addInput();
@@ -275,12 +295,14 @@ async function initialisePage() {
 
                     const displayValue = title && title !== "Unknown Title" ? title : doi;
                     textarea.value = displayValue;
+                    console.log(`Set DOI input ${index} to: "${displayValue}"`);
                 } else if (inputValue) {
                     // It's an input parameter - just display it
                     // Mark that we have input values to trigger search later
                     hasInputValues = true;
                     const displayValue = decodeURIComponent(inputValue);
                     textarea.value = displayValue;
+                    console.log(`Set input ${index} to: "${displayValue}"`);
                 }
 
                 updateClearButtonVisibility(textarea);
@@ -289,6 +311,12 @@ async function initialisePage() {
                 doi = getUrlParameter(`doi${index}`);
                 inputValue = getUrlParameter(`input${index}`);
             }
+            
+            console.log('Finished processing URL parameters. Final state:', { 
+                doisCount: dois.length, 
+                hasInputValues, 
+                totalInputsProcessed: index - 1 
+            });
 
             // Clear any remaining input fields that don't have URL parameters
             const totalInputs = container.querySelectorAll('.input-group');
@@ -328,11 +356,29 @@ async function initialisePage() {
             window.isInitialized = true;
 
             // Trigger search if we loaded DOIs from the URL or input values
+            console.log('Search trigger check:', { 
+                doisLength: dois.length, 
+                hasInputValues: hasInputValues,
+                isNavigating: window.isNavigating 
+            });
+            
             if (dois.length > 0) {
+                console.log('Triggering search with DOIs:', dois);
                 findCommonCitations(dois);
             } else if (hasInputValues) {
+                console.log('Triggering search with input values');
                 // For input values, trigger a regular search (no pre-resolved DOIs)
-                findCommonCitations();
+                // Add a small delay during navigation to ensure DOM is fully updated
+                if (window.isNavigating) {
+                    setTimeout(() => {
+                        console.log('Delayed search trigger during navigation');
+                        findCommonCitations();
+                    }, 100);
+                } else {
+                    findCommonCitations();
+                }
+            } else {
+                console.log('No search triggered - no DOIs or input values found');
             }
         } else {
             console.log('Skipping initialization - already initialized and not navigating');
