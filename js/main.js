@@ -217,8 +217,15 @@ async function initialisePage() {
 
         const container = document.getElementById('inputContainer');
 
-        // Always initialize if not already done
-        if (!window.isInitialized) {
+        // Initialize if not done, or if we're handling navigation
+        const shouldInitialize = !window.isInitialized || window.isNavigating;
+        console.log('Initialization check:', { 
+            isInitialized: window.isInitialized, 
+            isNavigating: window.isNavigating,
+            shouldInitialize 
+        });
+        
+        if (shouldInitialize) {
             console.log('Initialization starting...');
             // Count how many URL parameters we have
             let paramCount = 0;
@@ -375,11 +382,64 @@ async function initialisePage() {
                 console.log('No search triggered - no DOIs or input values found');
             }
         } else {
-            console.log('Skipping initialization - already initialized');
+            console.log('Skipping initialization:', { 
+                isInitialized: window.isInitialized, 
+                isNavigating: window.isNavigating 
+            });
         }
     } catch (error) {
         console.error('Error in initialisePage:', error);
         showError('Failed to initialize page');
+    }
+}
+
+// Handle browser navigation (back/forward)
+async function handleNavigation(event) {
+    console.log('=== NAVIGATION EVENT ===');
+    console.log('URL:', window.location.href);
+    
+    // Prevent handling during initial page load
+    if (!window.initialLoadComplete) {
+        console.log('Skipping navigation - initial load not complete');
+        return;
+    }
+    
+    try {
+        // Mark that we're navigating
+        window.isNavigating = true;
+        
+        // Clear current state
+        window.isInitialized = false;
+        
+        // Clear results
+        const resultsDiv = document.getElementById('results');
+        if (resultsDiv) {
+            resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
+        }
+        
+        // Clear all input fields
+        const container = document.getElementById('inputContainer');
+        const inputs = container.querySelectorAll('.article-input');
+        inputs.forEach(input => {
+            input.value = '';
+            updateClearButtonVisibility(input);
+        });
+        
+        // Clear global state
+        window.allSortedReferences = null;
+        window.currentPage = 1;
+        window.currentGroupedReferences = null;
+        
+        // Reinitialize with new URL parameters
+        await initialisePage();
+        
+        console.log('Navigation completed successfully');
+        
+    } catch (error) {
+        console.error('Navigation error:', error);
+        showError('Navigation failed');
+    } finally {
+        window.isNavigating = false;
     }
 }
 
@@ -396,5 +456,6 @@ export {
     ensureRemoveButton,
     initialisePage,
     addToPublicationSearch,
-    updateUrlWithCurrentInputs
+    updateUrlWithCurrentInputs,
+    handleNavigation
 };

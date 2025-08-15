@@ -19,7 +19,8 @@
             ensureRemoveButton,
             initialisePage,
             addToPublicationSearch,
-            updateUrlWithCurrentInputs
+            updateUrlWithCurrentInputs,
+            handleNavigation
         } from './js/main.js';
 
         // Export functions to window for onclick handlers
@@ -32,6 +33,7 @@
         window.ensureRemoveButton = ensureRemoveButton;
         window.addToPublicationSearch = addToPublicationSearch;
         window.updateUrlWithCurrentInputs = updateUrlWithCurrentInputs;
+        window.handleNavigation = handleNavigation;
 
         // Initialize page when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
@@ -57,8 +59,8 @@
 
         // Handle popstate events (back/forward navigation)
         window.addEventListener('popstate', function(event) {
-            console.log('Popstate event - reloading page');
-            window.location.reload();
+            console.log('Popstate event - handling navigation without reload');
+            handleNavigation(event);
         });
 
         // Event listeners for search via Enter key
