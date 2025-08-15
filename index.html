@@ -41,8 +41,12 @@
             window.isNavigating = false;
             window.initialLoadComplete = false;
             
+            // Debug: Log when page loads
+            console.log('Page loaded, URL:', window.location.href);
+            
             initialisePage().then(() => {
                 window.initialLoadComplete = true;
+                console.log('Initial page load completed');
             });
             
             document.querySelectorAll('.article-input').forEach(textarea => {
@@ -54,10 +58,28 @@
         });
 
         // Handle popstate events (back/forward navigation)
-        // Add a small delay to avoid handling the initial page load as navigation
-        setTimeout(() => {
-            window.addEventListener('popstate', handleNavigation);
-        }, 100);
+        window.addEventListener('popstate', function(event) {
+            console.log('=== POPSTATE EVENT FIRED ===');
+            console.log('Event:', event);
+            console.log('Current URL:', window.location.href);
+            console.log('Event state:', event.state);
+            console.log('Initial load complete:', window.initialLoadComplete);
+            handleNavigation(event);
+        });
+        
+        // Debug: Log when history methods are called
+        const originalPushState = history.pushState;
+        const originalReplaceState = history.replaceState;
+        
+        history.pushState = function(...args) {
+            console.log('=== PUSHSTATE CALLED ===', args);
+            return originalPushState.apply(this, args);
+        };
+        
+        history.replaceState = function(...args) {
+            console.log('=== REPLACESTATE CALLED ===', args);
+            return originalReplaceState.apply(this, args);
+        };
 
         // Event listeners for search via Enter key
         document.addEventListener('keypress', function(event) {

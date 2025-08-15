@@ -75,7 +75,11 @@ async function findCommonCitations(initialDois = null) {
             // Only push if the URL is actually different from current URL
             if (newUrl !== window.location.href) {
                 console.log('Pushing new URL to history:', newUrl);
-                history.pushState({ searchPerformed: true, dois: dois }, '', newUrl);
+                history.pushState({ 
+                    searchPerformed: true, 
+                    dois: dois,
+                    timestamp: Date.now()
+                }, '', newUrl);
             }
         }
 
@@ -196,8 +200,15 @@ async function initialisePage() {
 
         const container = document.getElementById('inputContainer');
 
-        // Only initialize if we haven't already
-        if (!window.isInitialized) {
+        // Initialize if not already done, or if we're handling navigation
+        const shouldInitialize = !window.isInitialized || window.isNavigating;
+        console.log('Initialization check:', { 
+            isInitialized: window.isInitialized, 
+            isNavigating: window.isNavigating,
+            shouldInitialize: shouldInitialize
+        });
+        
+        if (shouldInitialize) {
             // Count how many URL parameters we have
             let paramCount = 0;
             let tempIndex = 1;
@@ -323,6 +334,8 @@ async function initialisePage() {
                 // For input values, trigger a regular search (no pre-resolved DOIs)
                 findCommonCitations();
             }
+        } else {
+            console.log('Skipping initialization - already initialized and not navigating');
         }
     } catch (error) {
         console.error('Error in initialisePage:', error);
@@ -333,6 +346,7 @@ async function initialisePage() {
 // Function to handle browser navigation (back/forward)
 async function handleNavigation(event) {
     console.log('Navigation: popstate event fired, URL:', window.location.href);
+    console.log('Event state:', event.state);
     
     // Don't handle navigation during initial page load
     if (!window.initialLoadComplete) {
@@ -349,6 +363,8 @@ async function handleNavigation(event) {
     window.isNavigating = true;
     
     try {
+        console.log('Starting navigation handling...');
+        
         // Force reinitialize by resetting the flag
         window.isInitialized = false;
         
@@ -358,7 +374,7 @@ async function handleNavigation(event) {
             resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
         }
         
-        // Clear all existing input values
+        // Clear all existing input values first
         const container = document.getElementById('inputContainer');
         if (container) {
             const existingInputs = container.querySelectorAll('.article-input');
@@ -374,6 +390,7 @@ async function handleNavigation(event) {
         window.currentGroupedReferences = null;
         
         // Reinitialize the page with the new URL parameters
+        console.log('Reinitializing page with URL:', window.location.href);
         await initialisePage();
         console.log('Navigation completed successfully');
     } catch (error) {
