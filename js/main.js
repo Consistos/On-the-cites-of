@@ -217,9 +217,9 @@ async function initialisePage() {
 
         const container = document.getElementById('inputContainer');
 
-        // Only initialize during normal page load (not during navigation)
-        if (!window.isInitialized && !window.isNavigating) {
-            console.log('Normal initialization starting...');
+        // Always initialize if not already done
+        if (!window.isInitialized) {
+            console.log('Initialization starting...');
             // Count how many URL parameters we have
             let paramCount = 0;
             let tempIndex = 1;
@@ -375,10 +375,7 @@ async function initialisePage() {
                 console.log('No search triggered - no DOIs or input values found');
             }
         } else {
-            console.log('Skipping normal initialization:', { 
-                isInitialized: window.isInitialized, 
-                isNavigating: window.isNavigating 
-            });
+            console.log('Skipping initialization - already initialized');
         }
     } catch (error) {
         console.error('Error in initialisePage:', error);
@@ -386,145 +383,7 @@ async function initialisePage() {
     }
 }
 
-// Function to handle browser navigation (back/forward)
-async function handleNavigation(event) {
-    console.log('=== NAVIGATION EVENT ===');
-    console.log('URL:', window.location.href);
-    console.log('Event:', event);
-    console.log('Initial load complete:', window.initialLoadComplete);
-    
-    // Don't handle navigation during initial page load
-    if (!window.initialLoadComplete) {
-        console.log('Skipping - initial load not complete');
-        return;
-    }
-    
-    // Prevent multiple simultaneous navigation events
-    if (window.isNavigating) {
-        console.log('Skipping - navigation already in progress');
-        return;
-    }
-    
-    console.log('Processing navigation...');
-    window.isNavigating = true;
-    
-    try {
-        // Clear current state completely
-        window.isInitialized = false;
-        
-        // Clear results
-        const resultsDiv = document.getElementById('results');
-        if (resultsDiv) {
-            resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
-        }
-        
-        // Clear all input fields
-        const container = document.getElementById('inputContainer');
-        if (container) {
-            const inputs = container.querySelectorAll('.article-input');
-            inputs.forEach(input => {
-                input.value = '';
-                updateClearButtonVisibility(input);
-            });
-        }
-        
-        // Clear global state
-        window.allSortedReferences = null;
-        window.currentPage = 1;
-        window.currentGroupedReferences = null;
-        
-        // Force a complete reinitialization
-        console.log('Forcing complete reinitialization...');
-        await forceReinitialize();
-        
-    } catch (error) {
-        console.error('Navigation error:', error);
-        showError('Navigation failed: ' + error.message);
-    } finally {
-        window.isNavigating = false;
-    }
-}
 
-// New function to force complete reinitialization
-async function forceReinitialize() {
-    console.log('=== FORCE REINITIALIZE ===');
-    console.log('Current URL:', window.location.href);
-    
-    // Parse URL parameters manually
-    const urlParams = new URLSearchParams(window.location.search);
-    const params = Object.fromEntries(urlParams.entries());
-    console.log('URL parameters:', params);
-    
-    // Find all doi and input parameters
-    const dois = [];
-    const inputs = [];
-    
-    for (let i = 1; i <= 10; i++) { // Check up to 10 parameters
-        const doi = params[`doi${i}`];
-        const input = params[`input${i}`];
-        
-        if (doi) {
-            dois.push({ index: i, value: doi, type: 'doi' });
-        }
-        if (input) {
-            inputs.push({ index: i, value: decodeURIComponent(input), type: 'input' });
-        }
-    }
-    
-    console.log('Found parameters:', { dois, inputs });
-    
-    // Combine and sort by index
-    const allParams = [...dois, ...inputs].sort((a, b) => a.index - b.index);
-    
-    if (allParams.length === 0) {
-        console.log('No parameters found, clearing page');
-        return;
-    }
-    
-    // Ensure we have enough input fields
-    const container = document.getElementById('inputContainer');
-    let existingInputs = container.querySelectorAll('.input-group');
-    
-    while (existingInputs.length < allParams.length) {
-        addInput();
-        existingInputs = container.querySelectorAll('.input-group');
-    }
-    
-    // Populate input fields
-    const resolvedDois = [];
-    let hasInputValues = false;
-    
-    for (let i = 0; i < allParams.length; i++) {
-        const param = allParams[i];
-        const textarea = existingInputs[i].querySelector('.article-input');
-        
-        if (param.type === 'doi') {
-            resolvedDois.push(param.value);
-            textarea.value = param.value; // Will be replaced with title if available
-            console.log(`Set DOI field ${i + 1}: ${param.value}`);
-        } else {
-            hasInputValues = true;
-            textarea.value = param.value;
-            console.log(`Set input field ${i + 1}: ${param.value}`);
-        }
-        
-        updateClearButtonVisibility(textarea);
-    }
-    
-    // Update remove buttons
-    updateRemoveButtons();
-    
-    // Trigger search
-    console.log('Triggering search:', { resolvedDois, hasInputValues });
-    
-    if (resolvedDois.length > 0) {
-        console.log('Searching with DOIs');
-        findCommonCitations(resolvedDois);
-    } else if (hasInputValues) {
-        console.log('Searching with input values');
-        findCommonCitations();
-    }
-}
 
 // Export functions and initialization
 export {
@@ -537,7 +396,5 @@ export {
     ensureRemoveButton,
     initialisePage,
     addToPublicationSearch,
-    updateUrlWithCurrentInputs,
-    handleNavigation,
-    forceReinitialize
+    updateUrlWithCurrentInputs
 };
