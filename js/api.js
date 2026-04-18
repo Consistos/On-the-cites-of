@@ -144,7 +144,7 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
             };
         }
 
-        const responseText = await response.text();
+        // responseText is already populated from the loop above
         let data;
         try {
             data = JSON.parse(responseText);
