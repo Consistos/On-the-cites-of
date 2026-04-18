@@ -83,18 +83,41 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
     try {
         // Using a CORS proxy to bypass browser restrictions for OpenCitations API
         const targetUrl = `https://opencitations.net/index/coci/api/v1/citations/${encodeURIComponent(doi)}`;
-        // Using corsproxy.io as a public CORS proxy. Consider hosting your own for production.
-        const proxyBase = 'https://corsproxy.io/?';
-        const proxiedUrl = `${proxyBase}${encodeURIComponent(targetUrl)}`;
-        const response = await rateLimiter.add(() => fetch(proxiedUrl));
-
-        if (!response.ok) {
-            console.error(`OpenCitations API error: ${response.status} for DOI ${doi}`);
-            let errorMessage = `Failed to fetch data from OpenCitations (Status: ${response.status})`;
-
-            if (response.status === 500 || response.status === 520 || response.status === 522) {
-                errorMessage = `CORS proxy service is temporarily unavailable. This is a known issue with the proxy service. Please try again later.`;
+        
+        // Try multiple CORS proxies with fallback
+        const corsProxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+            'https://api.codetabs.com/v1/proxy?quest='
+        ];
+        
+        let response = null;
+        let lastError = null;
+        
+        for (const proxyBase of corsProxies) {
+            try {
+                const proxiedUrl = `${proxyBase}${encodeURIComponent(targetUrl)}`;
+                response = await rateLimiter.add(() => fetch(proxiedUrl));
+                
+                if (response.ok) {
+                    console.log(`Successfully fetched via proxy: ${proxyBase}`);
+                    break; // Success, exit loop
+                }
+                
+                lastError = new Error(`Proxy returned status ${response.status}`);
+                console.warn(`CORS proxy ${proxyBase} returned status ${response.status}`);
+            } catch (error) {
+                lastError = error;
+                console.warn(`CORS proxy ${proxyBase} failed:`, error.message);
+                continue; // Try next proxy
             }
+        }
+        
+        if (!response || !response.ok) {
+            console.error(`All CORS proxies failed for DOI ${doi}`);
+            const errorMessage = lastError ? 
+                `All CORS proxy services failed. Last error: ${lastError.message}` :
+                `Failed to fetch data from OpenCitations. All proxy services are unavailable.`;
 
             return {
                 status: 'API_ERROR',

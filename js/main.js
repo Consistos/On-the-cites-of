@@ -31,7 +31,7 @@ import { displayResults } from './results.js';
 async function findCommonCitations(initialDois = null) {
     console.log('=== findCommonCitations called ===');
     console.log('initialDois:', initialDois);
-    
+
     const inputs = document.getElementsByClassName('article-input');
     const resultsDiv = document.getElementById('results');
     const nonEmptyInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
@@ -78,18 +78,23 @@ async function findCommonCitations(initialDois = null) {
             }
 
             // Update URL with DOIs only if they weren't provided initially
-            const encodedDois = dois.map(doi => encodeURIComponent(doi));
-            const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index + 1}=${doi}`).join('&')}`;
-            
-            // Use pushState to create a new history entry that can be navigated back to
-            // Only push if the URL is actually different from current URL
-            if (newUrl !== window.location.href) {
-                console.log('Pushing new URL to history:', newUrl);
-                history.pushState({ 
-                    searchPerformed: true, 
-                    dois: dois,
-                    timestamp: Date.now()
-                }, '', newUrl);
+            // Don't update URL during navigation to avoid breaking browser history
+            if (!window.isNavigating) {
+                const encodedDois = dois.map(doi => encodeURIComponent(doi));
+                const newUrl = `${window.location.pathname}?${encodedDois.map((doi, index) => `doi${index + 1}=${doi}`).join('&')}`;
+
+                // Use pushState to create a new history entry that can be navigated back to
+                // Only push if the URL is actually different from current URL
+                if (newUrl !== window.location.href) {
+                    console.log('Pushing new URL to history:', newUrl);
+                    history.pushState({
+                        searchPerformed: true,
+                        dois: dois,
+                        timestamp: Date.now()
+                    }, '', newUrl);
+                }
+            } else {
+                console.log('Skipping URL update during navigation');
             }
         }
 
@@ -198,9 +203,12 @@ function getUrlParameter(name) {
 
 async function initialisePage() {
     try {
-        console.log('Initializing page, URL:', window.location.href);
-        console.log('URL search params:', window.location.search);
-        
+        console.log('=== INITIALIZING PAGE ===');
+        console.log('URL:', window.location.href);
+        console.log('Search params:', window.location.search);
+        console.log('Is navigating:', window.isNavigating);
+        console.log('Is initialized:', window.isInitialized);
+
         let index = 1;
         const dois = [];
         let hasInputValues = false;
@@ -208,23 +216,33 @@ async function initialisePage() {
         // Check for both doi and input parameters
         let doi = getUrlParameter(`doi${index}`);
         let inputValue = getUrlParameter(`input${index}`);
-        
+
         console.log('Initial parameter check:', { doi, inputValue });
-        
+
         // Debug: Check all URL parameters
         const urlParams = new URLSearchParams(window.location.search);
-        console.log('All URL parameters:', Object.fromEntries(urlParams.entries()));
+        const allParams = Object.fromEntries(urlParams.entries());
+        console.log('All URL parameters:', allParams);
+
+        // Count total parameters
+        let totalParams = 0;
+        for (let i = 1; i <= 10; i++) {
+            if (getUrlParameter(`doi${i}`) || getUrlParameter(`input${i}`)) {
+                totalParams++;
+            }
+        }
+        console.log('Total parameters found:', totalParams);
 
         const container = document.getElementById('inputContainer');
 
         // Initialize if not done, or if we're handling navigation
         const shouldInitialize = !window.isInitialized || window.isNavigating;
-        console.log('Initialization check:', { 
-            isInitialized: window.isInitialized, 
+        console.log('Initialization check:', {
+            isInitialized: window.isInitialized,
             isNavigating: window.isNavigating,
-            shouldInitialize 
+            shouldInitialize
         });
-        
+
         if (shouldInitialize) {
             console.log('Initialization starting...');
             // Count how many URL parameters we have
@@ -234,7 +252,7 @@ async function initialisePage() {
                 paramCount++;
                 tempIndex++;
             }
-            
+
             // Get existing inputs
             let existingInputs = container.querySelectorAll('.input-group');
 
@@ -252,7 +270,7 @@ async function initialisePage() {
                     addInput();
                     existingInputs = container.querySelectorAll('.input-group');
                 }
-                
+
                 // Ensure all existing inputs have remove buttons
                 existingInputs.forEach(inputGroup => {
                     ensureRemoveButton(inputGroup);
@@ -263,7 +281,7 @@ async function initialisePage() {
             console.log('Processing URL parameters...');
             while (doi || inputValue) {
                 console.log(`Processing parameter ${index}:`, { doi, inputValue });
-                
+
                 // Add new input if needed
                 if (index > existingInputs.length) {
                     addInput();
@@ -312,11 +330,11 @@ async function initialisePage() {
                 doi = getUrlParameter(`doi${index}`);
                 inputValue = getUrlParameter(`input${index}`);
             }
-            
-            console.log('Finished processing URL parameters. Final state:', { 
-                doisCount: dois.length, 
-                hasInputValues, 
-                totalInputsProcessed: index - 1 
+
+            console.log('Finished processing URL parameters. Final state:', {
+                doisCount: dois.length,
+                hasInputValues,
+                totalInputsProcessed: index - 1
             });
 
             // Clear any remaining input fields that don't have URL parameters
@@ -333,12 +351,12 @@ async function initialisePage() {
             if (dois.length > 1) {
                 console.log(`Batch fetching metadata for ${dois.length} DOIs`);
                 const metadataResults = await batchGetMetadata(dois);
-                
+
                 // Update textareas with batch-fetched titles, but only if they don't already have good titles
                 dois.forEach((doi, index) => {
                     const textarea = existingInputs[index].querySelector('.article-input');
                     const currentValue = textarea.value;
-                    
+
                     // Only update if current value is the DOI itself (not a title)
                     if (currentValue === doi) {
                         const metadata = metadataResults[doi];
@@ -357,34 +375,39 @@ async function initialisePage() {
             window.isInitialized = true;
 
             // Trigger search if we loaded DOIs from the URL or input values
-            console.log('Search trigger check:', { 
-                doisLength: dois.length, 
-                hasInputValues: hasInputValues,
-                isNavigating: window.isNavigating 
-            });
-            
+            console.log('=== SEARCH TRIGGER CHECK ===');
+            console.log('DOIs found:', dois.length, dois);
+            console.log('Has input values:', hasInputValues);
+            console.log('Is navigating:', window.isNavigating);
+
+            // Get current input values for debugging
+            const currentInputs = Array.from(document.querySelectorAll('.article-input')).map(input => input.value.trim());
+            console.log('Current input values:', currentInputs);
+
             if (dois.length > 0) {
-                console.log('Triggering search with DOIs:', dois);
+                console.log('=== TRIGGERING SEARCH WITH DOIs ===');
                 findCommonCitations(dois);
             } else if (hasInputValues) {
-                console.log('Triggering search with input values');
+                console.log('=== TRIGGERING SEARCH WITH INPUT VALUES ===');
                 // For input values, trigger a regular search (no pre-resolved DOIs)
                 // Add a small delay during navigation to ensure DOM is fully updated
                 if (window.isNavigating) {
+                    console.log('Adding delay for navigation...');
                     setTimeout(() => {
-                        console.log('Delayed search trigger during navigation');
+                        console.log('Executing delayed search during navigation');
                         findCommonCitations();
                     }, 100);
                 } else {
                     findCommonCitations();
                 }
             } else {
-                console.log('No search triggered - no DOIs or input values found');
+                console.log('=== NO SEARCH TRIGGERED ===');
+                console.log('Reason: No DOIs or input values found');
             }
         } else {
-            console.log('Skipping initialization:', { 
-                isInitialized: window.isInitialized, 
-                isNavigating: window.isNavigating 
+            console.log('Skipping initialization:', {
+                isInitialized: window.isInitialized,
+                isNavigating: window.isNavigating
             });
         }
     } catch (error) {
@@ -397,26 +420,26 @@ async function initialisePage() {
 async function handleNavigation(event) {
     console.log('=== NAVIGATION EVENT ===');
     console.log('URL:', window.location.href);
-    
+
     // Prevent handling during initial page load
     if (!window.initialLoadComplete) {
         console.log('Skipping navigation - initial load not complete');
         return;
     }
-    
+
     try {
         // Mark that we're navigating
         window.isNavigating = true;
-        
+
         // Clear current state
         window.isInitialized = false;
-        
+
         // Clear results
         const resultsDiv = document.getElementById('results');
         if (resultsDiv) {
             resultsDiv.innerHTML = '<div class="bg-white shadow-sm rounded-lg overflow-hidden"></div>';
         }
-        
+
         // Clear all input fields
         const container = document.getElementById('inputContainer');
         const inputs = container.querySelectorAll('.article-input');
@@ -424,17 +447,17 @@ async function handleNavigation(event) {
             input.value = '';
             updateClearButtonVisibility(input);
         });
-        
+
         // Clear global state
         window.allSortedReferences = null;
         window.currentPage = 1;
         window.currentGroupedReferences = null;
-        
+
         // Reinitialize with new URL parameters
         await initialisePage();
-        
+
         console.log('Navigation completed successfully');
-        
+
     } catch (error) {
         console.error('Navigation error:', error);
         showError('Navigation failed');

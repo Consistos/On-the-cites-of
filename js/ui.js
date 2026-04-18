@@ -51,20 +51,31 @@ async function addInput() {
 }
 
 function removeInput(button) {
+    console.log('=== REMOVING INPUT ===');
     const inputContainer = document.getElementById('inputContainer');
     const inputGroups = inputContainer.querySelectorAll('.input-group');
+    console.log('Input groups before removal:', inputGroups.length);
 
     // Only remove if there's more than one input group
     if (inputGroups.length > 1) {
         const inputGroup = button.closest('.input-group');
+        const inputValue = inputGroup.querySelector('.article-input').value.trim();
+        console.log('Removing input with value:', inputValue);
+        
         inputGroup.remove();
+        
         // Update remove buttons after removing input
         updateRemoveButtons();
+        
+        console.log('Input groups after removal:', document.querySelectorAll('.input-group').length);
 
         // Update URL parameters after removing input
+        console.log('Updating URL after input removal...');
         updateUrlWithCurrentInputs().catch(error => {
             console.error('Error updating URL after removing input:', error);
         });
+    } else {
+        console.log('Cannot remove - only one input group remaining');
     }
 }
 
@@ -203,20 +214,33 @@ function addToPublicationSearch(title, doi) {
 
 // Function to update URL parameters with all current input values
 async function updateUrlWithCurrentInputs() {
+    // Don't update URL during navigation to avoid breaking browser history
+    if (window.isNavigating) {
+        console.log('Skipping URL update during navigation');
+        return;
+    }
+    
     try {
+        console.log('=== UPDATING URL WITH CURRENT INPUTS ===');
         const inputs = document.getElementsByClassName('article-input');
+        const allInputValues = Array.from(inputs).map((input, i) => ({ index: i, value: input.value.trim() }));
         const nonEmptyInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
+        
+        console.log('All input values:', allInputValues);
+        console.log('Non-empty inputs:', nonEmptyInputs.length);
+        console.log('Current URL:', window.location.href);
 
         if (nonEmptyInputs.length === 0) {
             // Clear URL parameters if no inputs
             const newUrl = window.location.pathname;
-            console.log('UI cleared URL to:', newUrl);
+            console.log('Clearing all URL parameters, new URL:', newUrl);
             history.replaceState({ inputUpdate: true }, '', newUrl);
             return;
         }
 
         // Update the URL with the input values
         // Use 'input' parameters for titles and other identifiers, 'doi' for DOIs
+        // Always use sequential numbering starting from 1
         const params = new URLSearchParams();
         nonEmptyInputs.forEach((input, index) => {
             const value = input.value.trim();
@@ -225,17 +249,22 @@ async function updateUrlWithCurrentInputs() {
                 if (value.match(/^10\.\d+\/.+/)) {
                     // It's already a DOI, use the existing format
                     params.set(`doi${index + 1}`, value);
+                    console.log(`Added DOI parameter: doi${index + 1}=${value}`);
                 } else {
                     // It's likely a title or other identifier, store as input
                     params.set(`input${index + 1}`, encodeURIComponent(value));
+                    console.log(`Added input parameter: input${index + 1}=${encodeURIComponent(value)}`);
                 }
             }
         });
 
         const newUrl = `${window.location.pathname}?${params.toString()}`;
-        console.log('UI updated URL to:', newUrl);
+        console.log('Old URL:', window.location.href);
+        console.log('New URL:', newUrl);
+        
         // Use replaceState for input changes to avoid creating history entries
         history.replaceState({ inputUpdate: true }, '', newUrl);
+        console.log('URL updated successfully');
     } catch (error) {
         console.error('Error updating URL with current inputs:', error);
     }

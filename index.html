@@ -59,9 +59,27 @@
 
         // Handle popstate events (back/forward navigation)
         window.addEventListener('popstate', function(event) {
-            console.log('Popstate event - handling navigation without reload');
+            console.log('=== POPSTATE EVENT FIRED ===');
+            console.log('URL:', window.location.href);
+            console.log('Search params:', window.location.search);
+            console.log('Event state:', event.state);
+            console.log('Can go back:', window.history.length > 1);
             handleNavigation(event);
         });
+        
+        // Debug: Track history changes
+        const originalPushState = history.pushState;
+        const originalReplaceState = history.replaceState;
+        
+        history.pushState = function(state, title, url) {
+            console.log('=== PUSHSTATE ===', { state, title, url });
+            return originalPushState.call(this, state, title, url);
+        };
+        
+        history.replaceState = function(state, title, url) {
+            console.log('=== REPLACESTATE ===', { state, title, url });
+            return originalReplaceState.call(this, state, title, url);
+        };
 
         // Event listeners for search via Enter key
         document.addEventListener('keypress', function(event) {
