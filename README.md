@@ -3,7 +3,7 @@
 Search publications that cite all these.
 
 [Example search](https://on-the-cites-of.vercel.app/?doi1=10.1017/s0140525x99002034&doi2=10.1016/s0166-4328(96)89080-2)
-![Example search using 2 publications](./assets/Example%20screenshot.png)
+![Example search using 2 publications](./assets/image.png)
 
 ## Running the site
 
