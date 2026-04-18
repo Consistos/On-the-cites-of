@@ -84,14 +84,15 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
         // Using a CORS proxy to bypass browser restrictions for OpenCitations API
         const targetUrl = `https://opencitations.net/index/coci/api/v1/citations/${encodeURIComponent(doi)}`;
         
-        // Try multiple CORS proxies with fallback
+        // Try multiple CORS proxies with fallback (ordered by reliability)
         const corsProxies = [
+            'https://api.codetabs.com/v1/proxy?quest=',
             'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?',
-            'https://api.codetabs.com/v1/proxy?quest='
+            'https://corsproxy.io/?'
         ];
         
         let response = null;
+        let responseText = null;
         let lastError = null;
         
         for (const proxyBase of corsProxies) {
@@ -99,13 +100,27 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
                 const proxiedUrl = `${proxyBase}${encodeURIComponent(targetUrl)}`;
                 response = await rateLimiter.add(() => fetch(proxiedUrl));
                 
-                if (response.ok) {
-                    console.log(`Successfully fetched via proxy: ${proxyBase}`);
-                    break; // Success, exit loop
+                if (!response.ok) {
+                    lastError = new Error(`Proxy returned status ${response.status}`);
+                    console.warn(`CORS proxy ${proxyBase} returned status ${response.status}`);
+                    continue; // Try next proxy
                 }
                 
-                lastError = new Error(`Proxy returned status ${response.status}`);
-                console.warn(`CORS proxy ${proxyBase} returned status ${response.status}`);
+                // Try to get the response text
+                responseText = await response.text();
+                
+                // Validate it's actually JSON before accepting it
+                try {
+                    JSON.parse(responseText);
+                    console.log(`Successfully fetched via proxy: ${proxyBase}`);
+                    break; // Success with valid JSON, exit loop
+                } catch (jsonError) {
+                    console.warn(`CORS proxy ${proxyBase} returned non-JSON data, trying next proxy`);
+                    lastError = new Error('Invalid JSON response');
+                    response = null;
+                    responseText = null;
+                    continue; // Try next proxy
+                }
             } catch (error) {
                 lastError = error;
                 console.warn(`CORS proxy ${proxyBase} failed:`, error.message);
@@ -113,7 +128,7 @@ async function getCitingPubs(doi, offset = 0, limit = 20) {
             }
         }
         
-        if (!response || !response.ok) {
+        if (!response || !response.ok || !responseText) {
             console.error(`All CORS proxies failed for DOI ${doi}`);
             const errorMessage = lastError ? 
                 `All CORS proxy services failed. Last error: ${lastError.message}` :
